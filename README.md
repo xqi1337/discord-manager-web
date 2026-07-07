@@ -193,3 +193,4 @@ pm2-*.sh                  Scripts PM2
 - Une tache interrompue par un redemarrage PM2 est marquee comme interrompue; elle n'est pas reprise au message exact.
 - Les resultats dependent de l'index de recherche Discord, qui peut etre temporairement incomplet.
 - L'application est concue pour un usage local, pas pour un hebergement public.
+# discord-manager-web
