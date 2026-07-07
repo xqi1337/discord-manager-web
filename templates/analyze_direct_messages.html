@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Discord Manager - Analyse MPs{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow" data-opsec>{{ profile['name'] }}</p>
+        <h1>Analyse des messages prives</h1>
+    </div>
+    <div class="toolbar">
+        <a href="{{ url_for('direct_messages', profile_id=profile['id']) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i>
+            <span>MPs</span>
+        </a>
+        <a href="{{ url_for('delete_direct_messages', profile_id=profile['id']) }}" class="btn btn-danger">
+            <i class="bi bi-trash"></i>
+            <span>Supprimer</span>
+        </a>
+    </div>
+</header>
+
+<section class="metric-grid">
+    <div class="metric-card">
+        <span>Total</span>
+        <strong>{{ totals['messages'] }}</strong>
+    </div>
+    <div class="metric-card">
+        <span>Texte</span>
+        <strong>{{ totals['text'] }}</strong>
+    </div>
+    <div class="metric-card">
+        <span>Medias</span>
+        <strong>{{ totals['media'] }}</strong>
+    </div>
+    <div class="metric-card">
+        <span>Liens</span>
+        <strong>{{ totals['link'] }}</strong>
+    </div>
+</section>
+
+{% if analysis_results %}
+    <div class="table-card">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Conversation</th>
+                        <th>Total</th>
+                        <th>Repartition</th>
+                        <th class="text-end">Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for result in analysis_results %}
+                        {% set total = result['total_messages'] %}
+                        <tr>
+                            <td>
+                                <div class="channel-name">
+                                    <i class="bi bi-chat-dots"></i>
+                                    <span data-opsec>{{ result['direct_message']['name'] }}</span>
+                                </div>
+                            </td>
+                            <td><strong>{{ total }}</strong></td>
+                            <td>
+                                {% if total %}
+                                    <div class="stacked-progress" aria-label="Repartition">
+                                        <span class="segment segment-text" style="width: {{ (result['message_types']['text'] / total * 100) | round(1) }}%"></span>
+                                        <span class="segment segment-media" style="width: {{ (result['message_types']['media'] / total * 100) | round(1) }}%"></span>
+                                        <span class="segment segment-link" style="width: {{ (result['message_types']['link'] / total * 100) | round(1) }}%"></span>
+                                        <span class="segment segment-other" style="width: {{ (result['message_types']['other'] / total * 100) | round(1) }}%"></span>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">Aucun message</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <span class="badge text-bg-light">Texte {{ result['message_types']['text'] }}</span>
+                                <span class="badge text-bg-light">Medias {{ result['message_types']['media'] }}</span>
+                                <span class="badge text-bg-light">Liens {{ result['message_types']['link'] }}</span>
+                                <span class="badge text-bg-light">Autres {{ result['message_types']['other'] }}</span>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% else %}
+    <section class="empty-state">
+        <i class="bi bi-bar-chart"></i>
+        <h2>Aucun resultat</h2>
+        <p>Aucune conversation privee n'a pu etre analysee.</p>
+    </section>
+{% endif %}
+{% endblock %}

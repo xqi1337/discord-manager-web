@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Discord Manager - Serveurs{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow" data-opsec>{{ profile['name'] }}</p>
+        <h1>Serveurs</h1>
+    </div>
+    <div class="toolbar">
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i>
+            <span>Retour</span>
+        </a>
+        <a href="{{ url_for('scan_servers', profile_id=profile['id']) }}" class="btn btn-primary">
+            <i class="bi bi-arrow-clockwise"></i>
+            <span>Actualiser</span>
+        </a>
+    </div>
+</header>
+
+<section class="identity-strip">
+    {% if profile['avatar_url'] %}
+        <img src="{{ profile['avatar_url'] }}" alt="" class="profile-avatar" data-opsec>
+    {% else %}
+        <div class="profile-avatar avatar-fallback" data-opsec>
+            {{ (profile['username'] or profile['name'] or '?')[0].upper() }}
+        </div>
+    {% endif %}
+    <div>
+        <strong data-opsec>{{ discord_display_name(profile) }}</strong>
+        <span data-opsec>{{ profile['user_id'] }}</span>
+    </div>
+</section>
+
+{% if guilds %}
+    <div class="server-grid">
+        {% for guild in guilds %}
+            <a class="card server-card server-card-link" href="{{ url_for('channels', profile_id=profile['id'], guild_id=guild['id']) }}">
+                <div class="card-body">
+                    <div class="server-topline">
+                        {% if guild['icon_url'] %}
+                            <img src="{{ guild['icon_url'] }}" alt="" class="server-icon" data-opsec>
+                        {% else %}
+                            <div class="server-icon avatar-fallback" data-opsec>
+                                {{ (guild['name'] or '?')[0].upper() }}
+                            </div>
+                        {% endif %}
+                        <div>
+                            <h2 data-opsec>{{ guild['name'] }}</h2>
+                            <p data-opsec>{{ guild['id'] }}</p>
+                        </div>
+                    </div>
+
+                    <div class="server-badges">
+                        {% if guild['owner_id'] == profile['user_id'] %}
+                            <span class="badge text-bg-warning">Proprietaire</span>
+                        {% endif %}
+                        {% if guild['member_count'] %}
+                            <span class="badge text-bg-light">{{ guild['member_count'] }} membres</span>
+                        {% endif %}
+                        <span class="badge text-bg-primary">Analyser</span>
+                    </div>
+                </div>
+            </a>
+        {% endfor %}
+    </div>
+{% else %}
+    <section class="empty-state">
+        <i class="bi bi-hdd-network"></i>
+        <h2>Aucun serveur charge</h2>
+        <p>Actualisez la liste apres avoir verifie que le token est valide et que le compte a acces a des serveurs.</p>
+        <a href="{{ url_for('scan_servers', profile_id=profile['id']) }}" class="btn btn-primary">
+            <i class="bi bi-arrow-clockwise"></i>
+            <span>Actualiser</span>
+        </a>
+    </section>
+{% endif %}
+{% endblock %}

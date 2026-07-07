@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Discord Manager - Analyse{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow" data-opsec>{{ guild['name'] }}</p>
+        <h1>Analyse des messages</h1>
+    </div>
+    <div class="toolbar">
+        <a href="{{ url_for('channels', profile_id=profile['id'], guild_id=guild['id']) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i>
+            <span>Salons</span>
+        </a>
+        <a href="{{ url_for('delete_messages', profile_id=profile['id'], guild_id=guild['id']) }}" class="btn btn-danger">
+            <i class="bi bi-trash"></i>
+            <span>Supprimer</span>
+        </a>
+    </div>
+</header>
+
+<section class="status-panel mb-3">
+    <div class="status-heading">
+        <div>
+            <span class="badge text-bg-primary">Search Discord</span>
+            {% if search_meta['limited'] %}
+                <span class="badge text-bg-warning">Limite atteinte</span>
+            {% endif %}
+        </div>
+        <span class="section-subtitle mb-0">{{ search_meta['pages_fetched'] }} page(s) search lue(s)</span>
+    </div>
+    <dl class="status-list">
+        <div>
+            <dt>Total annonce Discord</dt>
+            <dd>{{ search_meta['total_results'] }}</dd>
+        </div>
+        <div>
+            <dt>Messages du compte retenus</dt>
+            <dd>{{ search_meta['messages_filtered'] }}</dd>
+        </div>
+    </dl>
+    {% if search_meta['error'] %}
+        <div class="alert alert-warning mt-3 mb-0">
+            <i class="bi bi-exclamation-triangle"></i>
+            {{ search_meta['error'] }}
+        </div>
+    {% endif %}
+</section>
+
+<section class="metric-grid">
+    <div class="metric-card">
+        <span>Total</span>
+        <strong>{{ totals['messages'] }}</strong>
+    </div>
+    <div class="metric-card">
+        <span>Texte</span>
+        <strong>{{ totals['text'] }}</strong>
+    </div>
+    <div class="metric-card">
+        <span>Medias</span>
+        <strong>{{ totals['media'] }}</strong>
+    </div>
+    <div class="metric-card">
+        <span>Liens</span>
+        <strong>{{ totals['link'] }}</strong>
+    </div>
+</section>
+
+{% if analysis_results %}
+    <div class="table-card">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Salon</th>
+                        <th>Total</th>
+                        <th>Repartition</th>
+                        <th class="text-end">Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for result in analysis_results %}
+                        {% set total = result['total_messages'] %}
+                        <tr>
+                            <td>
+                                <div class="channel-name">
+                                    <i class="bi bi-hash"></i>
+                                    <span data-opsec>{{ result['channel']['name'] }}</span>
+                                </div>
+                            </td>
+                            <td><strong>{{ total }}</strong></td>
+                            <td>
+                                {% if total %}
+                                    <div class="stacked-progress" aria-label="Repartition">
+                                        <span class="segment segment-text" style="width: {{ (result['message_types']['text'] / total * 100) | round(1) }}%"></span>
+                                        <span class="segment segment-media" style="width: {{ (result['message_types']['media'] / total * 100) | round(1) }}%"></span>
+                                        <span class="segment segment-link" style="width: {{ (result['message_types']['link'] / total * 100) | round(1) }}%"></span>
+                                        <span class="segment segment-other" style="width: {{ (result['message_types']['other'] / total * 100) | round(1) }}%"></span>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">Aucun message</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <span class="badge text-bg-light">Texte {{ result['message_types']['text'] }}</span>
+                                <span class="badge text-bg-light">Medias {{ result['message_types']['media'] }}</span>
+                                <span class="badge text-bg-light">Liens {{ result['message_types']['link'] }}</span>
+                                <span class="badge text-bg-light">Autres {{ result['message_types']['other'] }}</span>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="legend-row" aria-label="Legende">
+        <span><i class="legend-dot segment-text"></i> Texte</span>
+        <span><i class="legend-dot segment-media"></i> Medias</span>
+        <span><i class="legend-dot segment-link"></i> Liens</span>
+        <span><i class="legend-dot segment-other"></i> Autres</span>
+    </div>
+
+    <section class="message-results">
+        <div class="channel-selector-header">
+            <div>
+                <h2 class="section-title">Messages trouves</h2>
+                <p class="section-subtitle">{{ message_rows|length }} message(s) retournes par l'endpoint search</p>
+            </div>
+        </div>
+        <div class="table-card message-results-table">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Salon</th>
+                            <th>Type</th>
+                            <th>Contenu</th>
+                            <th class="text-end">Lien</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in message_rows %}
+                            {% set message = row['message'] %}
+                            <tr>
+                                <td>{{ format_discord_timestamp(message['timestamp']) }}</td>
+                                <td>
+                                    <span class="channel-name">
+                                        <i class="bi bi-hash"></i>
+                                        <span data-opsec>{{ row['channel']['name'] }}</span>
+                                    </span>
+                                </td>
+                                <td><span class="badge text-bg-light">{{ message_type_label(row['message_type']) }}</span></td>
+                                <td class="message-content-cell">
+                                    <span data-opsec>{{ message['content'] or '(sans texte)' }}</span>
+                                    {% if message['attachments'] %}
+                                        <span class="badge text-bg-light">{{ message['attachments']|length }} piece(s) jointe(s)</span>
+                                    {% endif %}
+                                    {% if message['embeds'] %}
+                                        <span class="badge text-bg-light">{{ message['embeds']|length }} embed(s)</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <a href="{{ row['jump_url'] }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noreferrer noopener">
+                                        <i class="bi bi-box-arrow-up-right"></i>
+                                        <span>Ouvrir</span>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-muted">Aucun message retourne par l'endpoint search.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+{% else %}
+    <section class="empty-state">
+        <i class="bi bi-bar-chart"></i>
+        <h2>Aucun resultat</h2>
+        <p>Aucun salon n'a pu etre analyse pour ce serveur.</p>
+    </section>
+{% endif %}
+{% endblock %}

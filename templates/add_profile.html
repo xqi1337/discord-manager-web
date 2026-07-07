@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Discord Manager - Ajouter un profil{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Nouveau profil</p>
+        <h1>Ajouter un compte</h1>
+    </div>
+    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+        <span>Retour</span>
+    </a>
+</header>
+
+<div class="content-grid two-columns">
+    <section class="card">
+        <div class="card-header bg-transparent">
+            <h2 class="section-title">Informations du profil</h2>
+        </div>
+        <div class="card-body">
+            <form method="post" class="stacked-form">
+                <div>
+                    <label for="name" class="form-label">Nom local</label>
+                    <input type="text" class="form-control" id="name" name="name" autocomplete="off" required>
+                    <div class="form-text">Exemple : compte principal, compte archive.</div>
+                </div>
+
+                <div>
+                    <label for="token" class="form-label">Token Discord</label>
+                    <textarea class="form-control secret-field" id="token" name="token" rows="4" spellcheck="false" autocomplete="off" required></textarea>
+                    <div class="form-text">Le token est verifie aupres de Discord avant l'ajout du profil.</div>
+                </div>
+
+                <div class="form-actions">
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Annuler</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check2-circle"></i>
+                        <span>Ajouter</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <aside class="info-panel">
+        <h2>Precautions</h2>
+        <ul class="check-list">
+            <li>Utilisez uniquement un compte et des donnees que vous controlez.</li>
+            <li>Le token est stocke en clair dans la base SQLite locale.</li>
+            <li>Une suppression Discord est definitive ; exportez les MPs importants avant suppression.</li>
+            <li>L'automatisation d'un compte utilisateur peut etre restreinte par Discord.</li>
+        </ul>
+    </aside>
+</div>
+{% endblock %}

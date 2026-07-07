@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.env.*
+!.env.example
+discord_manager.db
+*.sqlite
+*.sqlite3
+flask.log
+logs/
+exports/
+howtomaketheluncher.txt
+.DS_Store

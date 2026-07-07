@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Discord Manager - Profils{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Profils</p>
+        <h1>Comptes Discord</h1>
+    </div>
+    <a href="{{ url_for('add_profile') }}" class="btn btn-primary">
+        <i class="bi bi-person-plus"></i>
+        <span>Ajouter</span>
+    </a>
+</header>
+
+{% if profiles %}
+    <div class="profile-grid">
+        {% for profile in profiles %}
+            <article class="card profile-card">
+                <div class="card-body">
+                    <div class="profile-topline">
+                        {% if profile['avatar_url'] %}
+                            <img src="{{ profile['avatar_url'] }}" alt="" class="profile-avatar" data-opsec>
+                        {% else %}
+                            <div class="profile-avatar avatar-fallback" data-opsec>
+                                {{ (profile['username'] or profile['name'] or '?')[0].upper() }}
+                            </div>
+                        {% endif %}
+
+                        <div class="profile-title">
+                            <h2 data-opsec>{{ profile['name'] }}</h2>
+                            <p data-opsec>{{ discord_display_name(profile) }}</p>
+                        </div>
+
+                        <div class="dropdown">
+                            <button class="btn btn-icon btn-light" type="button" data-bs-toggle="dropdown" aria-label="Actions">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('servers', profile_id=profile['id']) }}">
+                                        <i class="bi bi-hdd-network"></i>
+                                        Serveurs
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('direct_messages', profile_id=profile['id']) }}">
+                                        <i class="bi bi-chat-dots"></i>
+                                        Messages prives
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="post" action="{{ url_for('delete_profile', profile_id=profile['id']) }}" data-confirm="Supprimer ce profil local ?">
+                                        <button type="submit" class="dropdown-item text-danger">
+                                            <i class="bi bi-trash"></i>
+                                            Supprimer
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <dl class="meta-list">
+                        <div>
+                            <dt>ID utilisateur</dt>
+                            <dd data-opsec>{{ profile['user_id'] or 'Inconnu' }}</dd>
+                        </div>
+                        <div>
+                            <dt>Ajoute le</dt>
+                            <dd>{{ profile['created_at'] }}</dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <div class="card-footer bg-transparent border-0 pt-0">
+                    <div class="button-row">
+                        <a href="{{ url_for('servers', profile_id=profile['id']) }}" class="btn btn-outline-primary">
+                            <i class="bi bi-hdd-network"></i>
+                            <span>Serveurs</span>
+                        </a>
+                        <a href="{{ url_for('direct_messages', profile_id=profile['id']) }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-chat-dots"></i>
+                            <span>MPs</span>
+                        </a>
+                    </div>
+                </div>
+            </article>
+        {% endfor %}
+    </div>
+{% else %}
+    <section class="empty-state">
+        <i class="bi bi-person-badge"></i>
+        <h2>Aucun profil local</h2>
+        <p>Ajoutez un profil pour charger ses serveurs et choisir les salons a analyser ou nettoyer.</p>
+        <a href="{{ url_for('add_profile') }}" class="btn btn-primary">
+            <i class="bi bi-person-plus"></i>
+            <span>Ajouter un profil</span>
+        </a>
+    </section>
+{% endif %}
+{% endblock %}

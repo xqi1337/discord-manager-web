@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Discord Manager - Statut{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow" data-opsec>{{ guild['name'] if guild else 'Messages prives' }}</p>
+        <h1>Suivi de suppression</h1>
+    </div>
+    <div class="toolbar">
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-house-door"></i>
+            <span>Accueil</span>
+        </a>
+        {% if profile and guild %}
+            <a href="{{ url_for('channels', profile_id=profile['id'], guild_id=guild['id']) }}" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-repeat"></i>
+                <span>Nouvelle tache</span>
+            </a>
+        {% elif profile %}
+            {% set selected_dms = task['selected_channels'] if task['selected_channels'] else [] %}
+            <a href="{{ url_for('direct_message_detail', profile_id=profile['id'], dm_id=selected_dms[0]) if selected_dms|length == 1 else url_for('direct_messages', profile_id=profile['id']) }}" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-repeat"></i>
+                <span>Nouvelle tache</span>
+            </a>
+        {% endif %}
+    </div>
+</header>
+
+{% set processed = task['deleted_messages'] + task['failed_messages'] + task['skipped_messages'] %}
+{% set initial_progress = (processed / task['total_messages'] * 100) if task['total_messages'] else 0 %}
+
+<section
+    class="status-panel"
+    id="task-status"
+    data-status-url="{{ url_for('api_task_status', task_id=task_id) }}"
+>
+    <div class="status-heading">
+        <div>
+            <span class="badge {{ status_badge_class(task['status']) }}" data-field="status_label">{{ status_label(task['status']) }}</span>
+            {% if task['dry_run'] %}
+                <span class="badge text-bg-info">Simulation</span>
+            {% endif %}
+        </div>
+        <code data-opsec>{{ task_id }}</code>
+    </div>
+
+    <div class="progress status-progress" role="progressbar" aria-label="Progression" aria-valuemin="0" aria-valuemax="100">
+        <div class="progress-bar" data-field="progress_bar" style="width: {{ initial_progress|round(1) }}%">{{ initial_progress|round(1) }}%</div>
+    </div>
+
+    <div class="metric-grid compact">
+        <div class="metric-card">
+            <span>Total</span>
+            <strong data-field="total_messages">{{ task['total_messages'] }}</strong>
+        </div>
+        <div class="metric-card">
+            <span>Supprimes</span>
+            <strong data-field="deleted_messages">{{ task['deleted_messages'] }}</strong>
+        </div>
+        <div class="metric-card">
+            <span>{{ 'Simules' if task['dry_run'] else 'Ignores' }}</span>
+            <strong data-field="skipped_messages">{{ task['skipped_messages'] }}</strong>
+        </div>
+        <div class="metric-card">
+            <span>Echecs</span>
+            <strong data-field="failed_messages">{{ task['failed_messages'] }}</strong>
+        </div>
+    </div>
+
+    <dl class="status-list">
+        <div>
+            <dt>{{ 'Salon courant' if guild else 'Conversation courante' }}</dt>
+            <dd data-field="current_channel_name" data-opsec>{{ task['current_channel_name'] or 'En attente' }}</dd>
+        </div>
+        <div>
+            <dt>Message courant</dt>
+            <dd data-field="current_message">{{ task['current_message'] or 'En attente' }}</dd>
+        </div>
+        <div>
+            <dt>Debut</dt>
+            <dd data-field="start_time">{{ task['start_time'] or 'En attente' }}</dd>
+        </div>
+        <div>
+            <dt>Fin</dt>
+            <dd data-field="end_time">{{ task['end_time'] or 'En attente' }}</dd>
+        </div>
+    </dl>
+
+    <div class="alert alert-danger d-none" data-field="error_box" role="alert">
+        <i class="bi bi-exclamation-triangle"></i>
+        <span data-field="error" data-opsec>{{ task['error'] or '' }}</span>
+    </div>
+</section>
+
+{% if task['export_before_delete'] %}
+    <section class="status-panel mt-3" id="task-exports">
+        <div class="status-heading">
+            <div>
+                <span class="badge {{ export_status_badge_class(task['export_status']) }}" data-field="export_status_label">
+                    {{ export_status_label(task['export_status']) }}
+                </span>
+            </div>
+            <span class="section-subtitle mb-0">Exports ZIP avant suppression</span>
+        </div>
+
+        <div class="export-list" data-field="export_files">
+            {% for export_file in task['export_files'] %}
+                {% set export_payload = export_file_payload(task_id, export_file) %}
+                <a href="{{ export_payload['download_url'] }}" class="export-link" download="{{ export_file['filename'] }}">
+                    <i class="bi bi-file-zip"></i>
+                    <span data-opsec>{{ export_file['name'] }} - {{ export_file['message_count'] }} messages</span>
+                </a>
+            {% else %}
+                <p class="section-subtitle mb-0">Aucun ZIP disponible pour le moment.</p>
+            {% endfor %}
+        </div>
+
+        <div class="alert alert-danger mt-3 {% if not task['export_errors'] %}d-none{% endif %}" data-field="export_errors" data-opsec role="alert">
+            {% for export_error in task['export_errors'] %}
+                {{ export_error['name'] }}: {{ export_error['error'] }}{% if not loop.last %} | {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+{% endif %}
+
+<section class="status-panel mt-3" id="task-message-log">
+    <div class="status-heading">
+        <div>
+            <span class="badge text-bg-primary">Messages trouves</span>
+            <span class="badge text-bg-success">Messages supprimes</span>
+            <span class="badge text-bg-danger">Echecs</span>
+        </div>
+        <span class="section-subtitle mb-0">Journal de la tache</span>
+    </div>
+
+    <div class="alert alert-warning {% if not task['message_log_limited'] %}d-none{% endif %}" data-field="message_log_limited" role="alert">
+        <i class="bi bi-exclamation-triangle"></i>
+        Le journal affiche seulement les premieres entrees configurees.
+    </div>
+
+    <div class="task-message-grid">
+        <section>
+            <h2 class="section-title">Trouves</h2>
+            <div class="task-message-list" data-field="found_message_log">
+                {% for entry in task['found_message_log'] %}
+                    <article class="task-message-item">
+                        <header>
+                            <strong data-opsec>{{ entry['channel_name'] }}</strong>
+                            <span>{{ entry['timestamp'] or '' }}</span>
+                        </header>
+                        <p data-opsec>{{ entry['content'] or '(sans texte)' }}</p>
+                        <div class="task-message-meta">
+                            <span class="badge text-bg-light">{{ entry['type_label'] }}</span>
+                            {% if entry['attachments'] %}<span class="badge text-bg-light">{{ entry['attachments'] }} piece(s) jointe(s)</span>{% endif %}
+                            {% if entry['embeds'] %}<span class="badge text-bg-light">{{ entry['embeds'] }} embed(s)</span>{% endif %}
+                            {% if entry['jump_url'] %}
+                                <a href="{{ entry['jump_url'] }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noreferrer noopener">
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                    <span>Lien</span>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </article>
+                {% else %}
+                    <p class="section-subtitle mb-0">Aucun message trouve pour le moment.</p>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section>
+            <h2 class="section-title">Supprimes</h2>
+            <div class="task-message-list" data-field="deleted_message_log">
+                {% for entry in task['deleted_message_log'] %}
+                    <article class="task-message-item">
+                        <header>
+                            <strong data-opsec>{{ entry['channel_name'] }}</strong>
+                            <span>{{ entry['timestamp'] or '' }}</span>
+                        </header>
+                        <p data-opsec>{{ entry['content'] or '(sans texte)' }}</p>
+                        <div class="task-message-meta">
+                            <span class="badge text-bg-light">{{ entry['type_label'] }}</span>
+                            {% if entry['attachments'] %}<span class="badge text-bg-light">{{ entry['attachments'] }} piece(s) jointe(s)</span>{% endif %}
+                            {% if entry['embeds'] %}<span class="badge text-bg-light">{{ entry['embeds'] }} embed(s)</span>{% endif %}
+                            {% if entry['jump_url'] %}
+                                <a href="{{ entry['jump_url'] }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noreferrer noopener">
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                    <span>Lien</span>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </article>
+                {% else %}
+                    <p class="section-subtitle mb-0">Aucun message supprime pour le moment.</p>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section>
+            <h2 class="section-title">Echecs</h2>
+            <div class="task-message-list" data-field="failed_message_log">
+                {% for entry in task['failed_message_log'] %}
+                    <article class="task-message-item">
+                        <header>
+                            <strong data-opsec>{{ entry['channel_name'] }}</strong>
+                            <span>{{ entry['timestamp'] or '' }}</span>
+                        </header>
+                        <p data-opsec>{{ entry['content'] or '(sans texte)' }}</p>
+                        <div class="task-message-meta">
+                            <span class="badge text-bg-light">{{ entry['type_label'] }}</span>
+                            {% if entry['attachments'] %}<span class="badge text-bg-light">{{ entry['attachments'] }} piece(s) jointe(s)</span>{% endif %}
+                            {% if entry['embeds'] %}<span class="badge text-bg-light">{{ entry['embeds'] }} embed(s)</span>{% endif %}
+                            {% if entry['jump_url'] %}
+                                <a href="{{ entry['jump_url'] }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noreferrer noopener">
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                    <span>Lien</span>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </article>
+                {% else %}
+                    <p class="section-subtitle mb-0">Aucun echec pour le moment.</p>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+</section>
+{% endblock %}
