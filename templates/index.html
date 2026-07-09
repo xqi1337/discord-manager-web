@@ -50,6 +50,12 @@
                                         Messages prives
                                     </a>
                                 </li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('autobumper', profile_id=profile['id']) }}">
+                                        <i class="bi bi-broadcast-pin"></i>
+                                        Auto Bump
+                                    </a>
+                                </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <form method="post" action="{{ url_for('delete_profile', profile_id=profile['id']) }}" data-confirm="Supprimer ce profil local ?">
@@ -84,6 +90,10 @@
                         <a href="{{ url_for('direct_messages', profile_id=profile['id']) }}" class="btn btn-outline-secondary">
                             <i class="bi bi-chat-dots"></i>
                             <span>MPs</span>
+                        </a>
+                        <a href="{{ url_for('autobumper', profile_id=profile['id']) }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-broadcast-pin"></i>
+                            <span>Bump</span>
                         </a>
                     </div>
                 </div>

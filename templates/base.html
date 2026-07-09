@@ -30,20 +30,176 @@
                 <span>Discord Manager</span>
             </a>
 
-            <ul class="nav nav-pills flex-column gap-1">
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">
-                        <i class="bi bi-house-door"></i>
-                        <span>Accueil</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'add_profile' %}active{% endif %}" href="{{ url_for('add_profile') }}">
-                        <i class="bi bi-person-plus"></i>
-                        <span>Ajouter un profil</span>
-                    </a>
-                </li>
-            </ul>
+            {% set endpoint = request.endpoint or '' %}
+            {% set account_open = endpoint in ['index', 'add_profile', 'account_backup_profiles', 'account_backup', 'export_account_backup_json', 'export_account_backup_zip', 'account_backup_settings'] %}
+            {% set messages_open = endpoint in ['server_profiles', 'servers', 'scan_servers', 'channels', 'analyze_messages', 'delete_messages', 'dm_profiles', 'direct_messages', 'direct_message_detail', 'scan_direct_messages', 'analyze_direct_messages', 'delete_direct_messages'] %}
+            {% set automation_open = endpoint in ['autobumper_profiles', 'autobumper', 'toggle_autobumper_target', 'force_autobumper_target', 'sync_autobumper_target', 'delete_autobumper_target'] %}
+            {% set selfbot_open = endpoint in ['selfbot_suite', 'api_selfbot_tool_status', 'export_selfbot_tool_run', 'export_server_backup_json'] %}
+            {% set selfbot_tab = request.args.get('tab') or ('runs' if request.args.get('run_id') else 'account') %}
+            {% set investigation_open = endpoint in ['mutual_guild_tool', 'message_scraper_tool', 'export_message_scraper_run'] %}
+            {% set monitoring_open = endpoint in ['service_logs', 'data_management'] %}
+
+            <div class="sidebar-category">
+                <button class="sidebar-section-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarAccounts" aria-expanded="{{ 'true' if account_open else 'false' }}" aria-controls="sidebarAccounts">
+                    <span>Comptes</span>
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+                <div class="collapse {% if account_open %}show{% endif %}" id="sidebarAccounts">
+                    <ul class="nav nav-pills flex-column gap-1">
+                        <li class="nav-item">
+                            <a class="nav-link {% if endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">
+                                <i class="bi bi-house-door"></i>
+                                <span>Accueil</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if endpoint == 'add_profile' %}active{% endif %}" href="{{ url_for('add_profile') }}">
+                                <i class="bi bi-person-plus"></i>
+                                <span>Ajouter un profil</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if endpoint in ['account_backup_profiles', 'account_backup', 'export_account_backup_json', 'export_account_backup_zip'] %}active{% endif %}" href="{{ url_for('account_backup_profiles') }}">
+                                <i class="bi bi-shield-check"></i>
+                                <span>Backup compte</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if endpoint == 'account_backup_settings' %}active{% endif %}" href="{{ url_for('account_backup_settings') }}">
+                                <i class="bi bi-calendar-check"></i>
+                                <span>Parametres backup</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="sidebar-category">
+                <button class="sidebar-section-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMessages" aria-expanded="{{ 'true' if messages_open else 'false' }}" aria-controls="sidebarMessages">
+                    <span>Messages</span>
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+                <div class="collapse {% if messages_open %}show{% endif %}" id="sidebarMessages">
+                    <ul class="nav nav-pills flex-column gap-1">
+                        <li class="nav-item">
+                            <a class="nav-link {% if endpoint in ['server_profiles', 'servers', 'scan_servers', 'channels', 'analyze_messages', 'delete_messages'] %}active{% endif %}" href="{{ url_for('server_profiles') }}">
+                                <i class="bi bi-hdd-network"></i>
+                                <span>Serveurs</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if endpoint in ['dm_profiles', 'direct_messages', 'direct_message_detail', 'scan_direct_messages', 'analyze_direct_messages', 'delete_direct_messages'] %}active{% endif %}" href="{{ url_for('dm_profiles') }}">
+                                <i class="bi bi-chat-dots"></i>
+                                <span>DM</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="sidebar-category">
+                <button class="sidebar-section-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarAutomation" aria-expanded="{{ 'true' if automation_open else 'false' }}" aria-controls="sidebarAutomation">
+                    <span>Automatisation</span>
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+                <div class="collapse {% if automation_open %}show{% endif %}" id="sidebarAutomation">
+                    <ul class="nav nav-pills flex-column gap-1">
+                        <li class="nav-item">
+                            <a class="nav-link {% if endpoint in ['autobumper_profiles', 'autobumper', 'toggle_autobumper_target', 'force_autobumper_target', 'sync_autobumper_target', 'delete_autobumper_target'] %}active{% endif %}" href="{{ url_for('autobumper_profiles') }}">
+                                <i class="bi bi-megaphone"></i>
+                                <span>Auto Bump</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="sidebar-category">
+                <button class="sidebar-section-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarSelfbot" aria-expanded="{{ 'true' if selfbot_open else 'false' }}" aria-controls="sidebarSelfbot">
+                    <span>Selfbot suite</span>
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+                <div class="collapse {% if selfbot_open %}show{% endif %}" id="sidebarSelfbot">
+                    <ul class="nav nav-pills flex-column gap-1">
+                        <li class="nav-item">
+                            <a class="nav-link {% if selfbot_open and selfbot_tab == 'account' %}active{% endif %}" href="{{ url_for('selfbot_suite', tab='account') }}">
+                                <i class="bi bi-person-gear"></i>
+                                <span>Compte</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if selfbot_open and selfbot_tab == 'spy' %}active{% endif %}" href="{{ url_for('selfbot_suite', tab='spy') }}">
+                                <i class="bi bi-radar"></i>
+                                <span>Spy</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if selfbot_open and selfbot_tab == 'messages' %}active{% endif %}" href="{{ url_for('selfbot_suite', tab='messages') }}">
+                                <i class="bi bi-send"></i>
+                                <span>Messages</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if selfbot_open and selfbot_tab == 'backups' %}active{% endif %}" href="{{ url_for('selfbot_suite', tab='backups') }}">
+                                <i class="bi bi-server"></i>
+                                <span>Backups serveur</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if selfbot_open and selfbot_tab == 'runs' %}active{% endif %}" href="{{ url_for('selfbot_suite', tab='runs') }}">
+                                <i class="bi bi-clock-history"></i>
+                                <span>Runs</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="sidebar-category">
+                <button class="sidebar-section-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarInvestigation" aria-expanded="{{ 'true' if investigation_open else 'false' }}" aria-controls="sidebarInvestigation">
+                    <span>Investigation</span>
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+                <div class="collapse {% if investigation_open %}show{% endif %}" id="sidebarInvestigation">
+                    <ul class="nav nav-pills flex-column gap-1">
+                        <li class="nav-item">
+                            <a class="nav-link {% if endpoint == 'mutual_guild_tool' %}active{% endif %}" href="{{ url_for('mutual_guild_tool') }}">
+                                <i class="bi bi-diagram-3"></i>
+                                <span>Mutual Guild</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if endpoint in ['message_scraper_tool', 'export_message_scraper_run'] %}active{% endif %}" href="{{ url_for('message_scraper_tool') }}">
+                                <i class="bi bi-search"></i>
+                                <span>Message Scrapper</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="sidebar-category">
+                <button class="sidebar-section-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMonitoring" aria-expanded="{{ 'true' if monitoring_open else 'false' }}" aria-controls="sidebarMonitoring">
+                    <span>Monitoring</span>
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+                <div class="collapse {% if monitoring_open %}show{% endif %}" id="sidebarMonitoring">
+                    <ul class="nav nav-pills flex-column gap-1">
+                        <li class="nav-item">
+                            <a class="nav-link {% if endpoint == 'service_logs' %}active{% endif %}" href="{{ url_for('service_logs') }}">
+                                <i class="bi bi-activity"></i>
+                                <span>Logs services</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if endpoint == 'data_management' %}active{% endif %}" href="{{ url_for('data_management') }}">
+                                <i class="bi bi-database-gear"></i>
+                                <span>Gestion data</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
 
             <div class="sidebar-actions">
                 <button type="button" class="theme-toggle" data-theme-toggle aria-pressed="false">
@@ -74,6 +230,14 @@
 
             {% block content %}{% endblock %}
         </main>
+    </div>
+
+    <div class="activity-panel" data-activity-panel data-activity-url="{{ url_for('api_activity') }}" hidden aria-live="polite">
+        <div class="activity-panel-head">
+            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+            <strong>Activite en cours</strong>
+        </div>
+        <div class="activity-list" data-activity-list></div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

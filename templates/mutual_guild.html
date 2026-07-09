@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+
+{% block title %}Discord Manager - Mutual Guild{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Tools</p>
+        <h1>Mutual Guild</h1>
+    </div>
+    <a href="{{ url_for('mutual_guild_tool') }}" class="btn btn-primary">
+        <i class="bi bi-arrow-clockwise"></i>
+        <span>Rafraichir</span>
+    </a>
+</header>
+
+<section class="tool-grid">
+    <article class="card">
+        <div class="card-header bg-transparent">
+            <h2 class="section-title">Recherche</h2>
+            <p class="section-subtitle">Tous les comptes importes sont utilises. Les serveurs sont dedoublonnes pour limiter les requetes.</p>
+        </div>
+        <div class="card-body">
+            <form method="post" class="stacked-form">
+                <div>
+                    <label for="target_user_id" class="form-label">ID utilisateur cible</label>
+                    <input type="text" class="form-control" id="target_user_id" name="target_user_id" inputmode="numeric" pattern="[0-9]{15,25}" placeholder="123456789012345678" required data-opsec>
+                </div>
+
+                <div class="tool-constant-grid compact">
+                    <div>
+                        <span>Comptes</span>
+                        <strong>{{ profiles|length }}</strong>
+                    </div>
+                    <div>
+                        <span>Mode</span>
+                        <strong>Scan dedoublonne</strong>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-diagram-3"></i>
+                    <span>Lancer Mutual Guild</span>
+                </button>
+            </form>
+        </div>
+    </article>
+
+    <aside class="status-panel">
+        <div class="status-heading">
+            <div>
+                <h2 class="section-title">Derniers scans</h2>
+                <p class="section-subtitle">Selection rapide d'un resultat recent.</p>
+            </div>
+        </div>
+        <div class="event-list">
+            {% for item in runs %}
+                <a class="event-item" href="{{ url_for('mutual_guild_tool', run_id=item['id']) }}">
+                    <header>
+                        <span class="badge {{ mutual_guild_status_badge_class(item['status']) }}">{{ mutual_guild_status_label(item['status']) }}</span>
+                        <time>{{ format_local_timestamp(item['created_at']) }}</time>
+                    </header>
+                    <strong data-opsec>{{ item['target_user_id'] }}</strong>
+                    <p>{{ item['mutual_count'] }} serveur(s) commun(s) sur {{ item['guild_count'] }} serveur(s) vus · {{ item['completed_profiles'] }}/{{ item['profile_count'] }} compte(s).</p>
+                </a>
+            {% else %}
+                <p class="section-subtitle">Aucun scan pour le moment.</p>
+            {% endfor %}
+        </div>
+    </aside>
+</section>
+
+{% if run %}
+    <section class="result-block" data-mutual-status data-run-id="{{ run['id'] }}" data-status="{{ run['status'] }}">
+        <div class="result-tools">
+            <div>
+                <h2 class="section-title">Resultats</h2>
+                <p class="section-subtitle">
+                    Cible <span data-opsec>{{ run['target_user_id'] }}</span> · {{ results|length }} serveur(s) commun(s)
+                </p>
+            </div>
+            {% if run['status'] == 'completed' %}
+                <a href="{{ url_for('message_scraper_tool', mutual_run_id=run['id']) }}" class="btn btn-outline-primary">
+                    <i class="bi bi-search"></i>
+                    <span>Ouvrir dans Message Scrapper</span>
+                </a>
+            {% else %}
+                <button type="button" class="btn btn-outline-secondary" disabled>
+                    <i class="bi bi-hourglass-split"></i>
+                    <span>Message Scrapper en attente</span>
+                </button>
+            {% endif %}
+        </div>
+
+        <div class="scraper-status-card tool-status-card">
+            <span class="badge {{ mutual_guild_status_badge_class(run['status']) }}" data-field="status_label">
+                {{ mutual_guild_status_label(run['status']) }}
+            </span>
+            <div class="progress">
+                <div class="progress-bar" role="progressbar" style="width: {{ mutual_guild_progress(run) }}%" data-field="progress_bar">
+                    {{ "%.1f"|format(mutual_guild_progress(run)) }}%
+                </div>
+            </div>
+            <dl class="compact-meta-list">
+                <div>
+                    <dt>Comptes</dt>
+                    <dd><span data-field="completed_profiles">{{ run['completed_profiles'] }}</span>/<span data-field="profile_count">{{ run['profile_count'] }}</span></dd>
+                </div>
+                <div>
+                    <dt>Serveurs vus</dt>
+                    <dd data-field="guild_count">{{ run['guild_count'] }}</dd>
+                </div>
+                <div>
+                    <dt>Mutual</dt>
+                    <dd data-field="mutual_count">{{ run['mutual_count'] }}</dd>
+                </div>
+                <div>
+                    <dt>Run</dt>
+                    <dd data-opsec>{{ run['id'] }}</dd>
+                </div>
+            </dl>
+            <div class="alert alert-warning mb-0 {% if not run['error'] %}d-none{% endif %}" data-field="error_box">
+                <i class="bi bi-exclamation-triangle"></i>
+                <span data-field="error">{{ run['error'] }}</span>
+            </div>
+        </div>
+
+        {% if run['target_user_payload'] %}
+            {% set target = run['target_user_payload'] %}
+            <article class="target-profile-strip">
+                {% if target.get('banner_url') %}
+                    <div class="target-profile-banner" style="background-image: url('{{ target.get('banner_url') }}')" data-opsec></div>
+                {% endif %}
+                <div class="target-profile-body">
+                    {% if target.get('avatar_url') %}
+                        <img src="{{ target.get('avatar_url') }}" alt="" class="target-profile-avatar" data-opsec>
+                    {% else %}
+                        <div class="target-profile-avatar avatar-fallback" data-opsec>
+                            {{ (target.get('username') or '?')[0].upper() }}
+                        </div>
+                    {% endif %}
+                    <div class="target-profile-main">
+                        <h2 data-opsec>{{ target.get('display_label') or target_user_label(target, run['target_user_id']) }}</h2>
+                        <p data-opsec>{{ target.get('bio') or 'Aucune bio disponible.' }}</p>
+                        <div class="inline-badge-list">
+                            {% if target.get('pronouns') %}
+                                <span class="badge text-bg-light" data-opsec>{{ target.get('pronouns') }}</span>
+                            {% endif %}
+                            {% if target.get('created_at') %}
+                                <span class="badge text-bg-light">Compte cree {{ format_local_timestamp(target.get('created_at')) }}</span>
+                            {% endif %}
+                            {% for badge in target.get('badges') or [] %}
+                                <span class="badge text-bg-primary">{{ badge }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </article>
+        {% endif %}
+
+        {% if run['status'] in ['pending', 'running'] %}
+            <section class="empty-state">
+                <i class="bi bi-hourglass-split"></i>
+                <h2>Scan en cours</h2>
+                <p>La page garde ce resultat ouvert et se mettra a jour automatiquement quand les serveurs seront prets.</p>
+            </section>
+        {% elif run['status'] == 'completed' %}
+            <form method="post" action="{{ url_for('message_scraper_tool') }}" class="stacked-form">
+                <input type="hidden" name="mutual_run_id" value="{{ run['id'] }}">
+                <input type="hidden" name="target_user_id" value="{{ run['target_user_id'] }}">
+
+                <div class="result-tools compact">
+                    <button type="button" class="btn btn-outline-secondary" data-select-all="guild_ids">
+                        <i class="bi bi-check2-square"></i>
+                        <span>Tout selectionner</span>
+                    </button>
+                    <div class="input-group scraper-pages-input">
+                        <span class="input-group-text">Pages max</span>
+                        <input class="form-control" type="number" min="0" max="200" step="1" name="max_pages" value="0">
+                        <span class="input-group-text">0 = complet</span>
+                    </div>
+                    <button type="submit" class="btn btn-primary" {% if not results %}disabled{% endif %}>
+                        <i class="bi bi-play"></i>
+                        <span>Scrapper la selection</span>
+                    </button>
+                </div>
+
+                <div class="mutual-result-list">
+                    {% for result in results %}
+                        {% set guild = result['guild_payload'] if result['guild_payload'] else {} %}
+                        {% set member = result['member_payload'] if result['member_payload'] else {} %}
+                        <article class="mutual-result-item mutual-rich-card">
+                            {% if result['guild_banner_url'] %}
+                                <div class="mutual-card-banner" style="background-image: url('{{ result['guild_banner_url'] }}')" data-opsec></div>
+                            {% endif %}
+
+                            <div class="mutual-card-head">
+                                <label class="channel-check">
+                                    <input class="form-check-input" type="checkbox" name="guild_ids" value="{{ result['guild_id'] }}" checked>
+                                    <span>
+                                        <span class="channel-name">
+                                            {% if result['guild_icon_url'] %}
+                                                <img src="{{ result['guild_icon_url'] }}" alt="" class="mini-icon" data-opsec>
+                                            {% else %}
+                                                <i class="bi bi-hdd-network"></i>
+                                            {% endif %}
+                                            <strong data-opsec>{{ result['guild_name'] or result['guild_id'] }}</strong>
+                                        </span>
+                                        <small data-opsec>{{ result['guild_id'] }}</small>
+                                    </span>
+                                </label>
+
+                                <div class="mutual-card-actions">
+                                    {% if result['vanity_url'] %}
+                                        <a href="{{ result['vanity_url'] }}" class="btn btn-sm btn-outline-primary" target="_blank" rel="noreferrer noopener">
+                                            <i class="bi bi-link-45deg"></i>
+                                            <span>Vanity</span>
+                                        </a>
+                                    {% endif %}
+                                    {% if result['invites_payload'] %}
+                                        {% set invite = result['invites_payload'][0] %}
+                                        <a href="https://discord.gg/{{ invite.get('code') }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noreferrer noopener">
+                                            <i class="bi bi-envelope"></i>
+                                            <span>Invite</span>
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <dl class="compact-meta-list">
+                                <div>
+                                    <dt>Compte retenu</dt>
+                                    <dd data-opsec>{{ result['selected_profile_name'] or result['selected_profile_username'] or result['selected_profile_id'] }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Comptes presents</dt>
+                                    <dd>{{ result['found_by_profiles']|length }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Pseudo cible</dt>
+                                    <dd data-opsec>{{ result['target_nick'] or 'Inconnu' }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Rejoint</dt>
+                                    <dd>{{ format_local_timestamp(result['target_joined_at']) }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Membres</dt>
+                                    <dd>{{ result['member_count'] or guild.get('approximate_member_count') or 'Inconnu' }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Verification</dt>
+                                    <dd>{{ guild.get('verification_label') or 'Inconnu' }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Boost</dt>
+                                    <dd>Niveau {{ guild.get('premium_tier') or 0 }}{% if guild.get('premium_subscription_count') %} · {{ guild.get('premium_subscription_count') }} boost(s){% endif %}</dd>
+                                </div>
+                                <div>
+                                    <dt>Invites</dt>
+                                    <dd>{{ result['invite_count'] or 0 }} permanente(s)</dd>
+                                </div>
+                            </dl>
+
+                            {% if guild.get('description') %}
+                                <p class="mutual-description" data-opsec>{{ guild.get('description') }}</p>
+                            {% endif %}
+
+                            <div class="mutual-detail-grid">
+                                <section>
+                                    <h3>Infos membre</h3>
+                                    <div class="inline-badge-list">
+                                        {% if member.get('server_avatar_url') %}
+                                            <span class="badge text-bg-light">Avatar serveur</span>
+                                        {% endif %}
+                                        {% if member.get('premium_since') %}
+                                            <span class="badge text-bg-primary">Boost depuis {{ format_local_timestamp(member.get('premium_since')) }}</span>
+                                        {% endif %}
+                                        {% if member.get('communication_disabled_until') %}
+                                            <span class="badge text-bg-warning">Timeout jusqu'a {{ format_local_timestamp(member.get('communication_disabled_until')) }}</span>
+                                        {% endif %}
+                                        {% for permission in member.get('important_permissions') or [] %}
+                                            <span class="badge text-bg-danger">{{ permission }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </section>
+
+                                <section>
+                                    <h3>Roles cible</h3>
+                                    <div class="role-chip-list">
+                                        {% for role in result['user_roles_payload'][:12] %}
+                                            <span class="role-chip" {% if role.get('color_hex') %}style="--role-color: {{ role.get('color_hex') }}"{% endif %} data-opsec>
+                                                {{ role.get('name') }}
+                                            </span>
+                                        {% else %}
+                                            <span class="section-subtitle">Aucun role visible.</span>
+                                        {% endfor %}
+                                    </div>
+                                </section>
+                            </div>
+                        </article>
+                    {% else %}
+                        <section class="empty-state">
+                            <i class="bi bi-search"></i>
+                            <h2>Aucun serveur commun</h2>
+                            <p>Aucun compte importe ne voit cette cible dans ses serveurs accessibles.</p>
+                        </section>
+                    {% endfor %}
+                </div>
+            </form>
+        {% else %}
+            <section class="empty-state">
+                <i class="bi bi-exclamation-triangle"></i>
+                <h2>Scan interrompu</h2>
+                <p>Le run n'a pas pu aller au bout. Relance un scan pour cette cible.</p>
+            </section>
+        {% endif %}
+    </section>
+{% endif %}
+{% endblock %}

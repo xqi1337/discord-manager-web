@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Discord Manager - {{ title }}{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Main Menu</p>
+        <h1>{{ title }}</h1>
+    </div>
+    <a href="{{ url_for('add_profile') }}" class="btn btn-primary">
+        <i class="bi bi-person-plus"></i>
+        <span>Ajouter un profil</span>
+    </a>
+</header>
+
+<p class="section-subtitle">{{ subtitle }}</p>
+
+{% if profiles %}
+    <section class="profile-grid">
+        {% for profile in profiles %}
+            <article class="card profile-card">
+                <div class="card-body">
+                    <div class="profile-topline">
+                        {% if profile['avatar_url'] %}
+                            <img src="{{ profile['avatar_url'] }}" alt="" class="profile-avatar" data-opsec>
+                        {% else %}
+                            <div class="profile-avatar avatar-fallback" data-opsec>
+                                {{ (profile['username'] or profile['name'] or '?')[0].upper() }}
+                            </div>
+                        {% endif %}
+
+                        <div class="profile-title">
+                            <h2 data-opsec>{{ profile['name'] }}</h2>
+                            <p data-opsec>{{ discord_display_name(profile) }}</p>
+                        </div>
+                    </div>
+
+                    <dl class="meta-list">
+                        <div>
+                            <dt>ID utilisateur</dt>
+                            <dd data-opsec>{{ profile['user_id'] or 'Inconnu' }}</dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <div class="card-footer bg-transparent border-0 pt-0">
+                    {% if mode == 'servers' %}
+                        <a href="{{ url_for('servers', profile_id=profile['id']) }}" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-hdd-network"></i>
+                            <span>Ouvrir les serveurs</span>
+                        </a>
+                    {% elif mode == 'dms' %}
+                        <a href="{{ url_for('direct_messages', profile_id=profile['id']) }}" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-chat-dots"></i>
+                            <span>Ouvrir les DM</span>
+                        </a>
+                    {% elif mode == 'account_backup' %}
+                        <a href="{{ url_for('account_backup', profile_id=profile['id']) }}" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-shield-check"></i>
+                            <span>Backup ce compte</span>
+                        </a>
+                    {% else %}
+                        <a href="{{ url_for('autobumper', profile_id=profile['id']) }}" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-megaphone"></i>
+                            <span>Configurer Auto Bump</span>
+                        </a>
+                    {% endif %}
+                </div>
+            </article>
+        {% endfor %}
+    </section>
+{% else %}
+    <section class="empty-state">
+        <i class="bi bi-person-badge"></i>
+        <h2>Aucun profil local</h2>
+        <p>Ajoute un profil pour utiliser cette section.</p>
+        <a href="{{ url_for('add_profile') }}" class="btn btn-primary">
+            <i class="bi bi-person-plus"></i>
+            <span>Ajouter un profil</span>
+        </a>
+    </section>
+{% endif %}
+{% endblock %}

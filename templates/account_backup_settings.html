@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}Discord Manager - Parametres backup{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Comptes</p>
+        <h1>Parametres backup</h1>
+    </div>
+    <div class="toolbar">
+        <form method="post">
+            <input type="hidden" name="action" value="run_missing_now">
+            <button type="submit" class="btn btn-outline-primary">
+                <i class="bi bi-play-circle"></i>
+                <span>Lancer manquants</span>
+            </button>
+        </form>
+        <a href="{{ url_for('account_backup_profiles') }}" class="btn btn-primary">
+            <i class="bi bi-shield-check"></i>
+            <span>Backups</span>
+        </a>
+    </div>
+</header>
+
+{% if not scheduler_enabled %}
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle"></i>
+        Le worker de routine est desactive par <code>ACCOUNT_BACKUP_SCHEDULER_ENABLED=0</code>.
+    </div>
+{% endif %}
+
+<section class="tool-grid">
+    <article class="card">
+        <div class="card-header bg-transparent">
+            <h2 class="section-title">Routine</h2>
+            <p class="section-subtitle">Verification automatique toutes les {{ scheduler_interval }}s quand PM2 garde l'application active.</p>
+        </div>
+        <div class="card-body">
+            <form method="post" class="stacked-form">
+                <input type="hidden" name="action" value="save_schedule">
+
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="enabled" name="enabled" {% if settings['enabled'] %}checked{% endif %}>
+                    <label class="form-check-label" for="enabled">Activer la routine backup</label>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label" for="mode">Frequence</label>
+                        <select class="form-select" id="mode" name="mode">
+                            <option value="daily" {% if settings['mode'] == 'daily' %}selected{% endif %}>Une fois par jour</option>
+                            <option value="interval" {% if settings['mode'] == 'interval' %}selected{% endif %}>Tous les X jours</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="daily_time">Heure quotidienne</label>
+                        <input class="form-control" type="time" id="daily_time" name="daily_time" value="{{ settings['daily_time'] or '03:00' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="interval_days">Intervalle jours</label>
+                        <input class="form-control" type="number" id="interval_days" name="interval_days" min="1" max="365" value="{{ settings['interval_days'] or 1 }}">
+                    </div>
+                </div>
+
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="create_invites" name="create_invites" {% if settings['create_invites'] %}checked{% endif %}>
+                    <label class="form-check-label" for="create_invites">Inclure la tentative de liens d'invitation</label>
+                </div>
+
+                <div>
+                    <h2 class="section-title">Comptes selectionnes</h2>
+                    <div class="profile-choice-grid">
+                        {% for profile in profiles %}
+                            <label class="profile-choice">
+                                <input type="checkbox" name="profile_ids" value="{{ profile['profile_id'] }}" {% if profile['schedule_enabled'] %}checked{% endif %}>
+                                {% if profile['avatar_url'] %}
+                                    <img src="{{ profile['avatar_url'] }}" alt="" class="mini-icon" data-opsec>
+                                {% else %}
+                                    <i class="bi bi-person-circle"></i>
+                                {% endif %}
+                                <span>
+                                    <strong data-opsec>{{ profile['name'] }}</strong>
+                                    <small data-opsec>{{ profile['username'] or profile['user_id'] or '-' }}</small>
+                                </span>
+                            </label>
+                        {% else %}
+                            <p class="section-subtitle mb-0">Aucun profil enregistre.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i>
+                    <span>Enregistrer</span>
+                </button>
+            </form>
+        </div>
+    </article>
+
+    <aside class="status-panel">
+        <div class="status-heading">
+            <div>
+                <h2 class="section-title">Etat</h2>
+                <p class="section-subtitle">{{ account_backup_schedule_mode_label(settings['mode']) }}</p>
+            </div>
+            {% if settings['enabled'] %}
+                <span class="badge text-bg-success">Actif</span>
+            {% else %}
+                <span class="badge text-bg-secondary">Pause</span>
+            {% endif %}
+        </div>
+        <dl class="compact-meta-list">
+            <div>
+                <dt>Dernier check</dt>
+                <dd>{{ format_local_timestamp(settings['last_check_at']) }}</dd>
+            </div>
+            <div>
+                <dt>Dernier lancement</dt>
+                <dd>{{ format_local_timestamp(settings['last_run_started_at']) }}</dd>
+            </div>
+            <div>
+                <dt>Invitations</dt>
+                <dd>{{ 'Oui' if settings['create_invites'] else 'Non' }}</dd>
+            </div>
+        </dl>
+        {% if settings['last_error'] %}
+            <div class="alert alert-danger mb-0">{{ settings['last_error'] }}</div>
+        {% endif %}
+    </aside>
+</section>
+
+<section class="table-card card">
+    <div class="card-header bg-transparent">
+        <h2 class="section-title">Backups recuperables</h2>
+        <p class="section-subtitle">Le dernier run de chaque compte reste disponible en JSON ou ZIP.</p>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Compte</th>
+                    <th>Routine</th>
+                    <th>Dernier backup</th>
+                    <th>Prochain</th>
+                    <th>Contenu</th>
+                    <th class="text-end">Recuperer</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for profile in profiles %}
+                    <tr>
+                        <td>
+                            <span class="channel-name">
+                                {% if profile['avatar_url'] %}
+                                    <img src="{{ profile['avatar_url'] }}" alt="" class="mini-icon" data-opsec>
+                                {% else %}
+                                    <i class="bi bi-person-circle"></i>
+                                {% endif %}
+                                <span>
+                                    <strong data-opsec>{{ profile['name'] }}</strong>
+                                    <small data-opsec>{{ profile['user_id'] or '-' }}</small>
+                                </span>
+                            </span>
+                        </td>
+                        <td>
+                            {% if profile['schedule_enabled'] %}
+                                <span class="badge {{ account_backup_schedule_status_badge_class(profile['last_status']) }}">{{ account_backup_schedule_status_label(profile['last_status']) }}</span>
+                                {% if profile['active_backup'] %}
+                                    <small class="d-block text-primary">Backup en cours</small>
+                                {% else %}
+                                    <small class="d-block text-muted">{{ profile['schedule_reason'] }}</small>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge text-bg-secondary">Non selectionne</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if profile['latest_run_id'] %}
+                                <a href="{{ url_for('account_backup', profile_id=profile['profile_id'], run_id=profile['latest_run_id']) }}">
+                                    <code data-opsec>{{ profile['latest_run_id'] }}</code>
+                                </a>
+                                <small class="d-block text-muted">{{ format_local_timestamp(profile['latest_created_at']) }}</small>
+                            {% else %}
+                                <span class="text-muted">Aucun</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if profile['schedule_enabled'] %}
+                                {{ format_local_timestamp(profile['computed_next_run_at']) }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if profile['latest_run_id'] %}
+                                {{ profile['latest_friend_count'] or 0 }} ami(s), {{ profile['latest_guild_count'] or 0 }} serveur(s), {{ profile['latest_invite_count'] or 0 }} invitation(s)
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if profile['latest_run_id'] %}
+                                <div class="table-actions">
+                                    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('account_backup', profile_id=profile['profile_id'], run_id=profile['latest_run_id']) }}">
+                                        <i class="bi bi-box-arrow-up-right"></i>
+                                    </a>
+                                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('export_account_backup_json', run_id=profile['latest_run_id']) }}">
+                                        <i class="bi bi-filetype-json"></i>
+                                    </a>
+                                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('export_account_backup_zip', run_id=profile['latest_run_id']) }}">
+                                        <i class="bi bi-file-zip"></i>
+                                    </a>
+                                </div>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">Aucun profil enregistre.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="table-card card">
+    <div class="card-header bg-transparent">
+        <h2 class="section-title">Historique routine</h2>
+        <p class="section-subtitle">Derniers evenements de planification backup.</p>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Compte</th>
+                    <th>Statut</th>
+                    <th>Message</th>
+                    <th>Run</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in events %}
+                    <tr>
+                        <td>{{ format_local_timestamp(event['created_at']) }}</td>
+                        <td data-opsec>{{ event['profile_name'] or event['profile_username'] or '-' }}</td>
+                        <td><span class="badge {{ account_backup_schedule_status_badge_class(event['status']) }}">{{ account_backup_schedule_status_label(event['status']) }}</span></td>
+                        <td>{{ event['message'] }}</td>
+                        <td>
+                            {% if event['run_id'] %}
+                                <code data-opsec>{{ event['run_id'] }}</code>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">Aucun evenement pour le moment.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

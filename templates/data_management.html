@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+
+{% block title %}Discord Manager - Gestion data{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Monitoring</p>
+        <h1>Gestion data</h1>
+    </div>
+    <a href="{{ url_for('data_management') }}" class="btn btn-primary">
+        <i class="bi bi-arrow-clockwise"></i>
+        <span>Rafraichir</span>
+    </a>
+</header>
+
+<section class="metric-grid">
+    <article class="card metric-card">
+        <span>Messages scrappes</span>
+        <strong>{{ snapshot['stats']['scraper_results'] }}</strong>
+        <small>{{ format_bytes(snapshot['stats']['scraper_payload_bytes']) }} stockes</small>
+    </article>
+    <article class="card metric-card">
+        <span>Mutual Guild</span>
+        <strong>{{ snapshot['stats']['mutual_results'] }}</strong>
+        <small>{{ snapshot['stats']['mutual_runs'] }} run(s)</small>
+    </article>
+    <article class="card metric-card">
+        <span>Cache Discord</span>
+        <strong>{{ snapshot['stats']['guilds'] + snapshot['stats']['channels'] + snapshot['stats']['direct_messages'] }}</strong>
+        <small>serveurs, salons, DM</small>
+    </article>
+    <article class="card metric-card">
+        <span>Exports</span>
+        <strong>{{ snapshot['exports']['files'] }}</strong>
+        <small>{{ format_bytes(snapshot['exports']['bytes']) }}</small>
+    </article>
+</section>
+
+<section class="data-info-grid">
+    <article class="card">
+        <div class="card-body">
+            <h2 class="section-title">Ce qui est stocke localement</h2>
+            <div class="data-storage-list">
+                <div>
+                    <i class="bi bi-search"></i>
+                    <span>Message Scrapper</span>
+                    <strong>{{ snapshot['stats']['scraper_runs'] }} run(s), {{ snapshot['stats']['scraper_results'] }} message(s)</strong>
+                </div>
+                <div>
+                    <i class="bi bi-diagram-3"></i>
+                    <span>Mutual Guild</span>
+                    <strong>{{ snapshot['stats']['mutual_runs'] }} run(s), {{ snapshot['stats']['mutual_results'] }} serveur(s)</strong>
+                </div>
+                <div>
+                    <i class="bi bi-hdd-network"></i>
+                    <span>Cache scans</span>
+                    <strong>{{ snapshot['stats']['guilds'] }} serveur(s), {{ snapshot['stats']['channels'] }} salon(s), {{ snapshot['stats']['direct_messages'] }} DM</strong>
+                </div>
+                <div>
+                    <i class="bi bi-file-zip"></i>
+                    <span>Exports locaux</span>
+                    <strong>{{ snapshot['exports']['files'] }} fichier(s), {{ format_bytes(snapshot['exports']['bytes']) }}</strong>
+                </div>
+                <div>
+                    <i class="bi bi-shield-check"></i>
+                    <span>Backups comptes</span>
+                    <strong>{{ snapshot['stats']['account_backup_runs'] }} run(s), {{ snapshot['stats']['account_backup_friends'] }} ami(s), {{ snapshot['stats']['account_backup_guilds'] }} serveur(s), {{ snapshot['stats']['account_backup_schedule_events'] }} log(s)</strong>
+                </div>
+                <div>
+                    <i class="bi bi-command"></i>
+                    <span>Selfbot suite</span>
+                    <strong>{{ snapshot['stats']['selfbot_tool_runs'] }} run(s), {{ snapshot['stats']['selfbot_spy_rules'] }} regle(s), {{ snapshot['stats']['selfbot_spy_events'] }} evenement(s), {{ snapshot['stats']['server_backups'] }} backup(s) serveur</strong>
+                </div>
+            </div>
+        </div>
+    </article>
+
+    <article class="card">
+        <div class="card-body">
+            <h2 class="section-title">Nettoyage rapide</h2>
+            <p class="section-subtitle">Ces actions retirent uniquement les donnees locales de l'application. Elles ne suppriment rien sur Discord.</p>
+            <div class="data-actions-grid">
+                <form method="post" data-confirm="Purger toutes les donnees Message Scrapper locales ?">
+                    <input type="hidden" name="action" value="purge_scraper">
+                    <button type="submit" class="btn btn-outline-danger">
+                        <i class="bi bi-trash3"></i>
+                        <span>Purger scrapper</span>
+                    </button>
+                </form>
+                <form method="post" data-confirm="Purger Mutual Guild et les scrapes lies ?">
+                    <input type="hidden" name="action" value="purge_mutual">
+                    <button type="submit" class="btn btn-outline-danger">
+                        <i class="bi bi-trash3"></i>
+                        <span>Purger mutual</span>
+                    </button>
+                </form>
+                <form method="post" data-confirm="Purger le cache serveurs/salons/DM ?">
+                    <input type="hidden" name="action" value="purge_cache">
+                    <button type="submit" class="btn btn-outline-secondary">
+                        <i class="bi bi-database-x"></i>
+                        <span>Purger cache</span>
+                    </button>
+                </form>
+                <form method="post" data-confirm="Supprimer tous les exports locaux ?">
+                    <input type="hidden" name="action" value="purge_exports">
+                    <button type="submit" class="btn btn-outline-secondary">
+                        <i class="bi bi-file-earmark-x"></i>
+                        <span>Purger exports</span>
+                    </button>
+                </form>
+                <form method="post" data-confirm="Purger les logs auto-bump ?">
+                    <input type="hidden" name="action" value="purge_service_logs">
+                    <button type="submit" class="btn btn-outline-secondary">
+                        <i class="bi bi-activity"></i>
+                        <span>Purger logs services</span>
+                    </button>
+                </form>
+                <form method="post" data-confirm="Purger l'historique suppression/export ?">
+                    <input type="hidden" name="action" value="purge_deletion_logs">
+                    <button type="submit" class="btn btn-outline-secondary">
+                        <i class="bi bi-clock-history"></i>
+                        <span>Purger taches</span>
+                    </button>
+                </form>
+                <form method="post" data-confirm="Purger les backups comptes locaux ?">
+                    <input type="hidden" name="action" value="purge_account_backup">
+                    <button type="submit" class="btn btn-outline-secondary">
+                        <i class="bi bi-shield-x"></i>
+                        <span>Purger backups</span>
+                    </button>
+                </form>
+                <form method="post" data-confirm="Purger les runs, spy et reglages Selfbot suite locaux ?">
+                    <input type="hidden" name="action" value="purge_selfbot">
+                    <button type="submit" class="btn btn-outline-secondary">
+                        <i class="bi bi-command"></i>
+                        <span>Purger selfbot</span>
+                    </button>
+                </form>
+                <form method="post" data-confirm="Purger les backups serveur locaux ?">
+                    <input type="hidden" name="action" value="purge_server_backups">
+                    <button type="submit" class="btn btn-outline-secondary">
+                        <i class="bi bi-hdd-network"></i>
+                        <span>Purger backups serveur</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </article>
+</section>
+
+<section class="table-card card">
+    <div class="card-header bg-transparent">
+        <h2 class="section-title">Runs Message Scrapper</h2>
+        <p class="section-subtitle">Les messages recuperes restent dans <code>message_scraper_results</code> tant que tu ne supprimes pas le run ou la purge scrapper.</p>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Run</th>
+                    <th>Cible</th>
+                    <th>Statut</th>
+                    <th>Stock</th>
+                    <th>Progression</th>
+                    <th>Phase</th>
+                    <th>Date</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for run in snapshot['scraper_runs'] %}
+                    <tr>
+                        <td><code data-opsec>{{ run['id'] }}</code></td>
+                        <td data-opsec>{{ run['target_user_id'] }}</td>
+                        <td><span class="badge {{ message_scraper_status_badge_class(run['status']) }}">{{ message_scraper_status_label(run['status']) }}</span></td>
+                        <td>{{ run['stored_messages'] or 0 }} message(s), {{ run['total_pages'] or 0 }} page(s)</td>
+                        <td>{{ run['completed_guilds'] or 0 }}/{{ run['total_guilds'] or 0 }} serveur(s)</td>
+                        <td>
+                            <strong>{{ run['current_phase'] or '-' }}</strong>
+                            {% if run['current_detail'] %}
+                                <small class="d-block text-muted">{{ run['current_detail'] }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ format_local_timestamp(run['created_at']) }}</td>
+                        <td class="text-end">
+                            <div class="table-actions">
+                                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('message_scraper_tool', mutual_run_id=run['mutual_run_id'] or '', run_id=run['id']) }}">
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                </a>
+                                <form method="post" data-confirm="Supprimer ce run Message Scrapper local ?">
+                                    <input type="hidden" name="action" value="delete_scraper_run">
+                                    <input type="hidden" name="run_id" value="{{ run['id'] }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">Aucun run Message Scrapper stocke.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="table-card card">
+    <div class="card-header bg-transparent">
+        <h2 class="section-title">Runs Mutual Guild</h2>
+        <p class="section-subtitle">Ces resultats contiennent les serveurs mutual, les profils qui les voient et les details enrichis recuperes.</p>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Run</th>
+                    <th>Cible</th>
+                    <th>Statut</th>
+                    <th>Serveurs</th>
+                    <th>Comptes</th>
+                    <th>Date</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for run in snapshot['mutual_runs'] %}
+                    <tr>
+                        <td><code data-opsec>{{ run['id'] }}</code></td>
+                        <td data-opsec>{{ run['target_user_id'] }}</td>
+                        <td><span class="badge {{ mutual_guild_status_badge_class(run['status']) }}">{{ mutual_guild_status_label(run['status']) }}</span></td>
+                        <td>{{ run['stored_guilds'] or 0 }}/{{ run['mutual_count'] or 0 }}</td>
+                        <td>{{ run['completed_profiles'] or 0 }}/{{ run['profile_count'] or 0 }}</td>
+                        <td>{{ format_local_timestamp(run['created_at']) }}</td>
+                        <td class="text-end">
+                            <div class="table-actions">
+                                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('mutual_guild_tool', run_id=run['id']) }}">
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                </a>
+                                <form method="post" data-confirm="Supprimer ce scan Mutual Guild local et ses scrapes lies ?">
+                                    <input type="hidden" name="action" value="delete_mutual_run">
+                                    <input type="hidden" name="run_id" value="{{ run['id'] }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">Aucun run Mutual Guild stocke.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="table-card card">
+    <div class="card-header bg-transparent">
+        <h2 class="section-title">Runs Selfbot suite</h2>
+        <p class="section-subtitle">Historique local de dmall, delallfriends, bcreate et bload.</p>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Run</th>
+                    <th>Outil</th>
+                    <th>Profil</th>
+                    <th>Statut</th>
+                    <th>Progression</th>
+                    <th>Date</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for run in snapshot['selfbot_runs'] %}
+                    <tr>
+                        <td><code data-opsec>{{ run['id'] }}</code></td>
+                        <td>{{ selfbot_tool_label(run['tool']) }}</td>
+                        <td data-opsec>{{ run['profile_name'] or run['profile_username'] or run['profile_id'] }}</td>
+                        <td><span class="badge {{ selfbot_tool_status_badge_class(run['status']) }}">{{ selfbot_tool_status_label(run['status']) }}</span></td>
+                        <td>{{ run['processed_count'] or 0 }}/{{ run['total_count'] or 0 }} traite(s), {{ run['success_count'] or 0 }} succes</td>
+                        <td>{{ format_local_timestamp(run['created_at']) }}</td>
+                        <td class="text-end">
+                            <div class="table-actions">
+                                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('selfbot_suite', tab='runs', run_id=run['id']) }}">
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                </a>
+                                <form method="post" data-confirm="Supprimer ce run Selfbot suite local ?">
+                                    <input type="hidden" name="action" value="delete_selfbot_run">
+                                    <input type="hidden" name="run_id" value="{{ run['id'] }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">Aucun run Selfbot suite stocke.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="table-card card">
+    <div class="card-header bg-transparent">
+        <h2 class="section-title">Backups serveur</h2>
+        <p class="section-subtitle">Backups crees par bcreate et utilisables par bload.</p>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Backup</th>
+                    <th>Serveur source</th>
+                    <th>Profil</th>
+                    <th>Structure</th>
+                    <th>Date</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for backup in snapshot['server_backups'] %}
+                    <tr>
+                        <td data-opsec>{{ backup['name'] }}</td>
+                        <td data-opsec>{{ backup['guild_name'] or backup['guild_id'] }}</td>
+                        <td data-opsec>{{ backup['profile_name'] or backup['profile_id'] }}</td>
+                        <td>{{ backup['channel_count'] }} salon(s), {{ backup['role_count'] }} role(s)</td>
+                        <td>{{ format_local_timestamp(backup['created_at']) }}</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('export_server_backup_json', backup_id=backup['id']) }}">
+                                <i class="bi bi-filetype-json"></i>
+                                <span>JSON</span>
+                            </a>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">Aucun backup serveur stocke.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="table-card card">
+    <div class="card-header bg-transparent">
+        <h2 class="section-title">Historique suppression/export</h2>
+        <p class="section-subtitle">Historique local des taches avec les compteurs et fichiers d'export associes.</p>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Tache</th>
+                    <th>Profil</th>
+                    <th>Contexte</th>
+                    <th>Statut</th>
+                    <th>Messages</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in snapshot['deletion_runs'] %}
+                    <tr>
+                        <td><code data-opsec>{{ task['id'] }}</code></td>
+                        <td data-opsec>{{ task['profile_name'] or task['profile_id'] or '-' }}</td>
+                        <td data-opsec>{{ task['guild_name'] or 'Messages prives' }}</td>
+                        <td><span class="badge {{ status_badge_class(task['status']) }}">{{ status_label(task['status']) }}</span></td>
+                        <td>{{ task['deleted_messages'] or 0 }}/{{ task['total_messages'] or 0 }} supprime(s)</td>
+                        <td>{{ format_local_timestamp(task['created_at']) }}</td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">Aucune tache locale.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}Discord Manager - Backup compte{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow" data-opsec>{{ profile['name'] }}</p>
+        <h1>Backup compte</h1>
+    </div>
+    <div class="toolbar">
+        <a href="{{ url_for('account_backup_profiles') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i>
+            <span>Retour</span>
+        </a>
+        <a href="{{ url_for('account_backup', profile_id=profile['id'], run_id=run['id'] if run else '') }}" class="btn btn-primary">
+            <i class="bi bi-arrow-clockwise"></i>
+            <span>Rafraichir</span>
+        </a>
+    </div>
+</header>
+
+<section class="identity-strip">
+    {% if profile['avatar_url'] %}
+        <img src="{{ profile['avatar_url'] }}" alt="" class="profile-avatar" data-opsec>
+    {% else %}
+        <div class="profile-avatar avatar-fallback" data-opsec>
+            {{ (profile['username'] or profile['name'] or '?')[0].upper() }}
+        </div>
+    {% endif %}
+    <div>
+        <strong data-opsec>{{ discord_display_name(profile) }}</strong>
+        <span data-opsec>{{ profile['user_id'] }}</span>
+    </div>
+</section>
+
+<section class="tool-grid">
+    <article class="card">
+        <div class="card-header bg-transparent">
+            <h2 class="section-title">Nouveau backup</h2>
+            <p class="section-subtitle">Sauvegarde les amis et serveurs visibles par ce compte. Les invitations sont creees uniquement si Discord l'autorise.</p>
+        </div>
+        <div class="card-body stacked-form">
+            <form method="post" class="stacked-form">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="create_invites" name="create_invites" checked>
+                    <label class="form-check-label" for="create_invites">Tenter de creer des liens d'invitation sans expiration</label>
+                </div>
+                <div class="alert alert-warning mb-0">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    La creation d'invitations modifie les serveurs ou le compte a la permission <code>Create Invite</code>. Sans permission, le backup garde juste le serveur.
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-play"></i>
+                    <span>Lancer le backup</span>
+                </button>
+            </form>
+        </div>
+    </article>
+
+    <aside class="status-panel">
+        <div class="status-heading">
+            <div>
+                <h2 class="section-title">Runs recents</h2>
+                <p class="section-subtitle">Derniers backups de ce compte.</p>
+            </div>
+        </div>
+        <div class="event-list">
+            {% for item in runs %}
+                <a class="event-item" href="{{ url_for('account_backup', profile_id=profile['id'], run_id=item['id']) }}">
+                    <header>
+                        <span class="badge {{ account_backup_status_badge_class(item['status']) }}">{{ account_backup_status_label(item['status']) }}</span>
+                        <time>{{ format_local_timestamp(item['created_at']) }}</time>
+                    </header>
+                    <strong data-opsec>{{ item['id'] }}</strong>
+                    <p>{{ item['friend_count'] or 0 }} ami(s) · {{ item['guild_count'] or 0 }} serveur(s) · {{ item['invite_count'] or 0 }} invitation(s)</p>
+                </a>
+            {% else %}
+                <p class="section-subtitle">Aucun backup pour le moment.</p>
+            {% endfor %}
+        </div>
+    </aside>
+</section>
+
+{% if run %}
+    <section class="result-block" data-account-backup-status data-run-id="{{ run['id'] }}" data-status="{{ run['status'] }}">
+        <div class="result-tools">
+            <div>
+                <h2 class="section-title">Resultat du backup</h2>
+                <p class="section-subtitle">Run <span data-opsec>{{ run['id'] }}</span> · {{ format_local_timestamp(run['created_at']) }}</p>
+            </div>
+            <div class="toolbar">
+                <a href="{{ url_for('export_account_backup_json', run_id=run['id']) }}" class="btn btn-outline-primary">
+                    <i class="bi bi-filetype-json"></i>
+                    <span>JSON</span>
+                </a>
+                <a href="{{ url_for('export_account_backup_zip', run_id=run['id']) }}" class="btn btn-outline-primary">
+                    <i class="bi bi-file-zip"></i>
+                    <span>ZIP</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="scraper-status-card tool-status-card">
+            <span class="badge {{ account_backup_status_badge_class(run['status']) }}" data-field="status_label">
+                {{ account_backup_status_label(run['status']) }}
+            </span>
+            <div class="progress">
+                <div class="progress-bar" role="progressbar" style="width: {{ account_backup_progress(run) }}%" data-field="progress_bar">
+                    {{ "%.1f"|format(account_backup_progress(run)) }}%
+                </div>
+            </div>
+            <dl class="compact-meta-list">
+                <div>
+                    <dt>Amis</dt>
+                    <dd data-field="friend_count">{{ run['friend_count'] or 0 }}</dd>
+                </div>
+                <div>
+                    <dt>Serveurs</dt>
+                    <dd><span data-field="processed_guilds">{{ run['processed_guilds'] or 0 }}</span>/<span data-field="guild_count">{{ run['guild_count'] or 0 }}</span></dd>
+                </div>
+                <div>
+                    <dt>Invitations</dt>
+                    <dd data-field="invite_count">{{ run['invite_count'] or 0 }}</dd>
+                </div>
+                <div>
+                    <dt>Echecs invite</dt>
+                    <dd data-field="failed_invite_count">{{ run['failed_invite_count'] or 0 }}</dd>
+                </div>
+                <div>
+                    <dt>Phase</dt>
+                    <dd data-field="current_phase">{{ run['current_phase'] or '-' }}</dd>
+                </div>
+            </dl>
+            <p class="scraper-current-detail" data-field="current_detail">{{ run['current_detail'] or 'En attente.' }}</p>
+            <div class="alert alert-danger mb-0 {% if not run['error'] %}d-none{% endif %}" data-field="error_box">
+                <span data-field="error">{{ run['error'] }}</span>
+            </div>
+        </div>
+
+        <section class="table-card card">
+            <div class="card-header bg-transparent">
+                <h2 class="section-title">Amis sauvegardes</h2>
+                <p class="section-subtitle">{{ friends|length }} relation(s) de type ami.</p>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Utilisateur</th>
+                            <th>Username</th>
+                            <th>ID</th>
+                            <th>Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for friend in friends %}
+                            <tr>
+                                <td>
+                                    <span class="channel-name">
+                                        {% if friend['avatar_url'] %}
+                                            <img src="{{ friend['avatar_url'] }}" alt="" class="mini-icon" data-opsec>
+                                        {% else %}
+                                            <i class="bi bi-person-circle"></i>
+                                        {% endif %}
+                                        <span data-opsec>{{ friend['display_name'] or friend['username'] or friend['user_id'] }}</span>
+                                    </span>
+                                </td>
+                                <td data-opsec>{{ friend['username'] or '-' }}</td>
+                                <td><code data-opsec>{{ friend['user_id'] }}</code></td>
+                                <td>{{ relationship_type_label(friend['relationship_type']) }}</td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">Aucun ami sauvegarde pour ce run.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="table-card card">
+            <div class="card-header bg-transparent">
+                <h2 class="section-title">Serveurs sauvegardes</h2>
+                <p class="section-subtitle">{{ guilds|length }} serveur(s), avec invitation quand possible.</p>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Serveur</th>
+                            <th>Salon</th>
+                            <th>Invitation</th>
+                            <th>Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for guild in guilds %}
+                            <tr>
+                                <td>
+                                    <span class="channel-name">
+                                        {% if guild['icon_url'] %}
+                                            <img src="{{ guild['icon_url'] }}" alt="" class="mini-icon" data-opsec>
+                                        {% else %}
+                                            <i class="bi bi-hdd-network"></i>
+                                        {% endif %}
+                                        <span>
+                                            <strong data-opsec>{{ guild['guild_name'] or guild['guild_id'] }}</strong>
+                                            <small data-opsec>{{ guild['guild_id'] }}</small>
+                                        </span>
+                                    </span>
+                                </td>
+                                <td data-opsec>
+                                    {% if guild['channel_name'] %}
+                                        #{{ guild['channel_name'] }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if guild['invite_url'] %}
+                                        <a href="{{ guild['invite_url'] }}" target="_blank" rel="noreferrer noopener" data-opsec>{{ guild['invite_url'] }}</a>
+                                    {% else %}
+                                        <span class="text-muted">Aucun lien</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {{ invite_status_badge_class(guild['invite_status']) }}">{{ invite_status_label(guild['invite_status']) }}</span>
+                                    {% if guild['invite_error'] %}
+                                        <small class="d-block text-muted">{{ guild['invite_error'] }}</small>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">Aucun serveur sauvegarde pour ce run.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </section>
+{% endif %}
+{% endblock %}

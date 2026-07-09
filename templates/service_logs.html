@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Discord Manager - Logs services{% endblock %}
+
+{% block content %}
+<header class="page-header compact-log-header">
+    <div>
+        <p class="eyebrow">Log</p>
+        <h1>Logs services</h1>
+    </div>
+    <a href="{{ url_for('service_logs') }}" class="btn btn-primary">
+        <i class="bi bi-arrow-clockwise"></i>
+        <span>Rafraichir</span>
+    </a>
+</header>
+
+<section class="log-viewer" aria-label="Journal chronologique des services">
+    <div class="log-viewer-bar">
+        <span>{{ unified_logs|length }} evenement(s)</span>
+        <span>Ordre chronologique</span>
+    </div>
+
+    <div class="log-scroll">
+        <div class="log-row log-row-head">
+            <span>Heure</span>
+            <span>Service</span>
+            <span>Statut</span>
+            <span>Contexte</span>
+            <span>Message</span>
+        </div>
+
+        {% for event in unified_logs %}
+            <article class="log-row">
+                <time>{{ format_local_timestamp(event['created_at']) }}</time>
+                <strong>{{ event['service'] }}</strong>
+                <span>
+                    <span class="badge {{ event['badge_class'] }}">{{ event['status'] }}</span>
+                </span>
+                <span class="log-context" data-opsec>
+                    {{ event['context'] }}
+                    {% if event['profile'] %}
+                        <small>{{ event['profile'] }}</small>
+                    {% endif %}
+                    {% if event['target'] %}
+                        <small>{{ event['target'] }}</small>
+                    {% endif %}
+                </span>
+                <span class="log-message">
+                    {{ event['message'] }}
+                    {% if event['link_url'] %}
+                        <a href="{{ event['link_url'] }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-box-arrow-up-right"></i>
+                            <span>Ouvrir</span>
+                        </a>
+                    {% endif %}
+                </span>
+            </article>
+        {% else %}
+            <div class="log-empty">
+                Aucun evenement enregistre.
+            </div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

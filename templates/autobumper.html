@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block title %}Discord Manager - Auto Bump{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow" data-opsec>{{ profile['name'] }}</p>
+        <h1>Auto Bump</h1>
+    </div>
+    <div class="toolbar">
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i>
+            <span>Retour</span>
+        </a>
+        <a href="{{ url_for('autobumper', profile_id=profile['id'], guild_id=selected_guild_id) }}" class="btn btn-primary">
+            <i class="bi bi-arrow-clockwise"></i>
+            <span>Rafraichir</span>
+        </a>
+    </div>
+</header>
+
+<section class="identity-strip">
+    {% if profile['avatar_url'] %}
+        <img src="{{ profile['avatar_url'] }}" alt="" class="profile-avatar" data-opsec>
+    {% else %}
+        <div class="profile-avatar avatar-fallback" data-opsec>
+            {{ (profile['username'] or profile['name'] or '?')[0].upper() }}
+        </div>
+    {% endif %}
+    <div>
+        <strong data-opsec>{{ discord_display_name(profile) }}</strong>
+        <span data-opsec>{{ profile['user_id'] }}</span>
+    </div>
+</section>
+
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i>
+    Auto Bump utilise une planification locale simple avec un intervalle minimum de {{ bump_interval_hours|round(1) }}h.
+</div>
+
+<section class="metric-grid">
+    <div class="metric-card">
+        <span>Cibles</span>
+        <strong>{{ stats['total_targets'] }}</strong>
+    </div>
+    <div class="metric-card">
+        <span>Actives</span>
+        <strong>{{ stats['enabled_targets'] }}</strong>
+    </div>
+    <div class="metric-card">
+        <span>Bumps OK</span>
+        <strong>{{ stats['success_count'] }}</strong>
+    </div>
+    <div class="metric-card">
+        <span>Prochain</span>
+        <strong class="metric-small">{{ format_time_until(stats['next_bump_at']) }}</strong>
+    </div>
+</section>
+
+<div class="autobumper-layout">
+    <section class="autobumper-main">
+        <article class="card">
+            <div class="card-header bg-transparent">
+                <h2 class="section-title">Configurer un salon</h2>
+                <p class="section-subtitle">Une cible maximum par serveur et par compte.</p>
+            </div>
+            <div class="card-body stacked-form">
+                <form method="get" action="{{ url_for('autobumper', profile_id=profile['id']) }}" class="server-channel-form">
+                    <div>
+                        <label for="guild_id" class="form-label">Serveur</label>
+                        <select class="form-select" id="guild_id" name="guild_id" data-autobumper-server-select>
+                            <option value="">Choisir un serveur</option>
+                            {% for guild in guilds %}
+                                <option value="{{ guild['id'] }}" {% if guild['id'] == selected_guild_id %}selected{% endif %} data-opsec>
+                                    {{ guild['name'] }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-outline-primary">
+                        <i class="bi bi-hdd-network"></i>
+                        <span>Charger salons</span>
+                    </button>
+                </form>
+
+                {% if selected_guild %}
+                    <form method="post" action="{{ url_for('autobumper', profile_id=profile['id']) }}" class="server-channel-form">
+                        <input type="hidden" name="guild_id" value="{{ selected_guild['id'] }}">
+
+                        <div>
+                            <label for="channel_id" class="form-label">Salon de bump</label>
+                            <select class="form-select" id="channel_id" name="channel_id" required>
+                                <option value="">Choisir un salon texte</option>
+                                {% for channel in channels %}
+                                    <option value="{{ channel['id'] }}" {% if selected_target and selected_target['channel_id'] == channel['id'] %}selected{% endif %} data-opsec>#{{ channel['name'] }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text" data-opsec>{{ selected_guild['name'] }} · {{ channels|length }} salon(s) texte charge(s)</div>
+                        </div>
+
+                        <div>
+                            <label for="custom_message" class="form-label">Message apres bump</label>
+                            <textarea class="form-control" id="custom_message" name="custom_message" rows="3" maxlength="1900" placeholder="Optionnel">{{ selected_target['custom_message'] if selected_target else '' }}</textarea>
+                            <div class="form-text">Laisse vide pour ne rien poster apres le bump.</div>
+                        </div>
+
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="enabled" name="enabled" {% if not selected_target or selected_target['enabled'] %}checked{% endif %}>
+                            <label class="form-check-label" for="enabled">Activer apres enregistrement</label>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" {% if not channels %}disabled{% endif %}>
+                            <i class="bi bi-save"></i>
+                            <span>Enregistrer</span>
+                        </button>
+                    </form>
+                {% else %}
+                    <div class="empty-inline">
+                        Choisis un serveur pour charger ses salons texte.
+                    </div>
+                {% endif %}
+            </div>
+        </article>
+
+        <section class="autobumper-target-list">
+            <div class="result-tools">
+                <div>
+                    <h2 class="section-title">Cibles configurees</h2>
+                    <p class="section-subtitle">{{ targets|length }} serveur(s) avec Auto Bump configure.</p>
+                </div>
+            </div>
+
+            {% for target in targets %}
+                <article class="autobumper-target">
+                    <div class="autobumper-target-head">
+                        <div class="channel-name">
+                            <i class="bi bi-broadcast-pin"></i>
+                            <span>
+                                <strong data-opsec>{{ target['guild_name'] or target['guild_id'] }}</strong>
+                                <small data-opsec>#{{ target['channel_name'] or target['channel_id'] }}</small>
+                            </span>
+                        </div>
+                        <span class="badge {{ autobumper_status_badge_class(target['last_status'], target['enabled']) }}">
+                            {{ 'Actif' if target['enabled'] else 'Pause' }} · {{ autobumper_status_label(target['last_status']) }}
+                        </span>
+                    </div>
+
+                    <dl class="autobumper-stats">
+                        <div>
+                            <dt>Prochain</dt>
+                            <dd>
+                                {{ format_time_until(target['next_bump_at']) }}
+                                <small>{{ format_epoch_timestamp(target['next_bump_at']) }}</small>
+                            </dd>
+                        </div>
+                        <div>
+                            <dt>Dernier</dt>
+                            <dd>{{ format_epoch_timestamp(target['last_bump_at']) }}</dd>
+                        </div>
+                        <div>
+                            <dt>Succes</dt>
+                            <dd>{{ target['success_count'] }}</dd>
+                        </div>
+                        <div>
+                            <dt>Echecs</dt>
+                            <dd>{{ target['fail_count'] }}</dd>
+                        </div>
+                    </dl>
+
+                    {% if target['last_error'] %}
+                        <div class="alert alert-danger py-2 mb-0">{{ target['last_error'] }}</div>
+                    {% endif %}
+
+                    <div class="target-actions">
+                        <form method="post" action="{{ url_for('toggle_autobumper_target', profile_id=profile['id'], target_id=target['id']) }}">
+                            <button type="submit" class="btn btn-outline-secondary">
+                                {% if target['enabled'] %}
+                                    <i class="bi bi-pause"></i>
+                                    <span>Pause</span>
+                                {% else %}
+                                    <i class="bi bi-play"></i>
+                                    <span>Reprendre</span>
+                                {% endif %}
+                            </button>
+                        </form>
+                        <form method="post" action="{{ url_for('force_autobumper_target', profile_id=profile['id'], target_id=target['id']) }}">
+                            <button type="submit" class="btn btn-outline-primary">
+                                <i class="bi bi-lightning-charge"></i>
+                                <span>Lancer</span>
+                            </button>
+                        </form>
+                        <form method="post" action="{{ url_for('delete_autobumper_target', profile_id=profile['id'], target_id=target['id']) }}" data-confirm="Supprimer cette configuration Auto Bump ?">
+                            <button type="submit" class="btn btn-outline-secondary">
+                                <i class="bi bi-trash"></i>
+                                <span>Supprimer</span>
+                            </button>
+                        </form>
+                    </div>
+                </article>
+            {% else %}
+                <section class="empty-state">
+                    <i class="bi bi-broadcast"></i>
+                    <h2>Aucune cible Auto Bump</h2>
+                    <p>Selectionne un serveur puis un salon pour planifier un bump Disboard sur ce compte.</p>
+                </section>
+            {% endfor %}
+        </section>
+    </section>
+
+    <aside class="status-panel autobumper-side">
+        <div class="status-heading">
+            <div>
+                <h2 class="section-title">Service</h2>
+                <p class="section-subtitle">Verification toutes les {{ check_interval_seconds }}s · cooldown lu automatiquement · {{ max_retries }} retry(s)</p>
+            </div>
+            <span class="badge text-bg-primary">Sync auto</span>
+        </div>
+
+        <dl class="status-list">
+            <div>
+                <dt>Tentatives</dt>
+                <dd>{{ stats['total_attempts'] }}</dd>
+            </div>
+            <div>
+                <dt>Echecs</dt>
+                <dd>{{ stats['fail_count'] }}</dd>
+            </div>
+        </dl>
+
+        <h3 class="section-title mt-4">Historique</h3>
+        <div class="event-list">
+            {% for event in events %}
+                <article class="event-item">
+                    <header>
+                        <span class="badge {{ autobumper_status_badge_class(event['status'], true) }}">
+                            {{ autobumper_status_label(event['status']) }}
+                        </span>
+                        <time>{{ format_local_timestamp(event['created_at']) }}</time>
+                    </header>
+                    <strong data-opsec>{{ event['guild_name'] or event['guild_id'] or 'Serveur' }}</strong>
+                    <p>{{ event['message'] }}</p>
+                </article>
+            {% else %}
+                <p class="section-subtitle">Aucun evenement pour le moment.</p>
+            {% endfor %}
+        </div>
+    </aside>
+</div>
+{% endblock %}

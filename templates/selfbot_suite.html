@@ -1,0 +1,619 @@
+{% extends "base.html" %}
+
+{% block title %}Discord Manager - Selfbot suite{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Tools</p>
+        <h1>Selfbot suite</h1>
+    </div>
+    <a href="{{ url_for('selfbot_suite', tab=active_selfbot_tab, run_id=selected_run['id'] if selected_run else '') }}" class="btn btn-primary">
+        <i class="bi bi-arrow-clockwise"></i>
+        <span>Rafraichir</span>
+    </a>
+</header>
+
+<section class="metric-grid">
+    <article class="card metric-card">
+        <span>Comptes</span>
+        <strong>{{ profiles|length }}</strong>
+        <small>profils importes</small>
+    </article>
+    <article class="card metric-card">
+        <span>Spy</span>
+        <strong>{{ spy_rules|length }}</strong>
+        <small>{{ spy_interval }}s entre scans</small>
+    </article>
+    <article class="card metric-card">
+        <span>Backups serveur</span>
+        <strong>{{ server_backups|length }}</strong>
+        <small>bcreate / bload</small>
+    </article>
+    <article class="card metric-card">
+        <span>Worker</span>
+        <strong>{{ 'ON' if worker_enabled else 'OFF' }}</strong>
+        <small>spy et antigroup auto</small>
+    </article>
+</section>
+
+<nav class="tool-tabbar nav nav-pills" role="tablist" aria-label="Onglets Selfbot suite">
+    <button class="nav-link {% if active_selfbot_tab == 'account' %}active{% endif %}" id="selfbot-account-tab" data-selfbot-tab="account" data-bs-toggle="tab" data-bs-target="#selfbot-account" type="button" role="tab" aria-controls="selfbot-account" aria-selected="{{ 'true' if active_selfbot_tab == 'account' else 'false' }}">
+        <i class="bi bi-person-gear"></i>
+        <span>Compte</span>
+    </button>
+    <button class="nav-link {% if active_selfbot_tab == 'spy' %}active{% endif %}" id="selfbot-spy-tab" data-selfbot-tab="spy" data-bs-toggle="tab" data-bs-target="#selfbot-spy" type="button" role="tab" aria-controls="selfbot-spy" aria-selected="{{ 'true' if active_selfbot_tab == 'spy' else 'false' }}">
+        <i class="bi bi-radar"></i>
+        <span>Spy</span>
+    </button>
+    <button class="nav-link {% if active_selfbot_tab == 'messages' %}active{% endif %}" id="selfbot-messages-tab" data-selfbot-tab="messages" data-bs-toggle="tab" data-bs-target="#selfbot-messages" type="button" role="tab" aria-controls="selfbot-messages" aria-selected="{{ 'true' if active_selfbot_tab == 'messages' else 'false' }}">
+        <i class="bi bi-send"></i>
+        <span>Messages</span>
+    </button>
+    <button class="nav-link {% if active_selfbot_tab == 'backups' %}active{% endif %}" id="selfbot-backups-tab" data-selfbot-tab="backups" data-bs-toggle="tab" data-bs-target="#selfbot-backups" type="button" role="tab" aria-controls="selfbot-backups" aria-selected="{{ 'true' if active_selfbot_tab == 'backups' else 'false' }}">
+        <i class="bi bi-server"></i>
+        <span>Backups serveur</span>
+    </button>
+    <button class="nav-link {% if active_selfbot_tab == 'runs' %}active{% endif %}" id="selfbot-runs-tab" data-selfbot-tab="runs" data-bs-toggle="tab" data-bs-target="#selfbot-runs" type="button" role="tab" aria-controls="selfbot-runs" aria-selected="{{ 'true' if active_selfbot_tab == 'runs' else 'false' }}">
+        <i class="bi bi-clock-history"></i>
+        <span>Runs</span>
+    </button>
+</nav>
+
+<div class="tab-content selfbot-tab-content">
+    <section class="tab-pane fade {% if active_selfbot_tab == 'account' %}show active{% endif %}" id="selfbot-account" role="tabpanel" aria-labelledby="selfbot-account-tab" tabindex="0">
+        <div class="selfbot-panel-grid">
+            <details class="tool-disclosure" open>
+                <summary>
+                    <span>
+                        <strong>HypeSquad</strong>
+                        <small>Maison du compte selectionne</small>
+                    </span>
+                    <i class="bi bi-chevron-down"></i>
+                </summary>
+                <div class="tool-disclosure-body">
+                    <form method="post" class="stacked-form">
+                        <input type="hidden" name="action" value="hypesquad">
+                        <div class="compact-form-grid">
+                            <div>
+                                <label class="form-label" for="hypesquad_profile">Profil</label>
+                                <select class="form-select" id="hypesquad_profile" name="profile_id" required>
+                                    <option value="">Choisir un profil</option>
+                                    {% for profile in profiles %}
+                                        <option value="{{ profile['id'] }}" data-opsec>{{ profile['name'] }} - {{ discord_display_name(profile) }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="form-label" for="house">Maison</label>
+                                <select class="form-select" id="house" name="house" required>
+                                    <option value="bravery">Bravery</option>
+                                    <option value="brilliance">Brilliance</option>
+                                    <option value="balance">Balance</option>
+                                    <option value="leave">Retirer HypeSquad</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="bi bi-stars"></i>
+                            <span>Appliquer HypeSquad</span>
+                        </button>
+                    </form>
+                </div>
+            </details>
+
+            <details class="tool-disclosure" open>
+                <summary>
+                    <span>
+                        <strong>Antigroup</strong>
+                        <small>{{ antigroup_interval }}s entre scans automatiques</small>
+                    </span>
+                    <i class="bi bi-chevron-down"></i>
+                </summary>
+                <div class="tool-disclosure-body stacked-form">
+                    <form method="post" class="stacked-form">
+                        <input type="hidden" name="action" value="save_antigroup">
+                        <div class="status-heading">
+                            <p class="section-subtitle mb-0">Comptes surveilles pour quitter les groupes DM ajoutes.</p>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-select-all="antigroup_profile_ids">
+                                <i class="bi bi-check2-square"></i>
+                                <span>Tout selectionner</span>
+                            </button>
+                        </div>
+                        <div class="checkbox-scroll">
+                            {% for setting in antigroup_settings %}
+                                <label class="check-row">
+                                    <input class="form-check-input" type="checkbox" name="antigroup_profile_ids" value="{{ setting['profile_id'] }}" {% if setting['enabled'] %}checked{% endif %}>
+                                    <span>
+                                        <strong data-opsec>{{ setting['name'] }}</strong>
+                                        <small data-opsec>{{ setting['username'] or setting['user_id'] }}</small>
+                                    </span>
+                                    <em>{{ setting['left_count'] or 0 }} quitte(s), {{ setting['fail_count'] or 0 }} echec(s)</em>
+                                </label>
+                            {% else %}
+                                <p class="section-subtitle">Aucun profil importe.</p>
+                            {% endfor %}
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i>
+                            <span>Enregistrer antigroup</span>
+                        </button>
+                    </form>
+                    <form method="post">
+                        <input type="hidden" name="action" value="scan_antigroup_now">
+                        <button type="submit" class="btn btn-outline-secondary">
+                            <i class="bi bi-search"></i>
+                            <span>Scanner maintenant</span>
+                        </button>
+                    </form>
+                </div>
+            </details>
+        </div>
+    </section>
+
+    <section class="tab-pane fade {% if active_selfbot_tab == 'spy' %}show active{% endif %}" id="selfbot-spy" role="tabpanel" aria-labelledby="selfbot-spy-tab" tabindex="0">
+        <div class="data-info-grid">
+            <article class="card">
+                <div class="card-header bg-transparent">
+                    <h2 class="section-title">Spy / SpyV2</h2>
+                    <p class="section-subtitle">Premier scan = synchronisation; les anciens messages ne creent pas d'alerte.</p>
+                </div>
+                <div class="card-body stacked-form">
+                    <details class="tool-disclosure" open>
+                        <summary>
+                            <span>
+                                <strong>Nouvelle regle</strong>
+                                <small>{{ spy_lookback }} messages recents par salon</small>
+                            </span>
+                            <i class="bi bi-chevron-down"></i>
+                        </summary>
+                        <div class="tool-disclosure-body">
+                            <form method="post" class="stacked-form">
+                                <input type="hidden" name="action" value="add_spy_rule">
+                                <div class="compact-form-grid">
+                                    <div>
+                                        <label class="form-label" for="spy_profile">Profil</label>
+                                        <select class="form-select" id="spy_profile" name="profile_id" required>
+                                            <option value="">Choisir un profil</option>
+                                            {% for profile in profiles %}
+                                                <option value="{{ profile['id'] }}" data-opsec>{{ profile['name'] }} - {{ discord_display_name(profile) }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="form-label" for="spy_guild_id">Serveur ID</label>
+                                        <input class="form-control" id="spy_guild_id" name="guild_id" inputmode="numeric" pattern="[0-9]{15,25}" required data-opsec>
+                                    </div>
+                                </div>
+                                <div class="compact-form-grid">
+                                    <div>
+                                        <label class="form-label" for="spy_channel_id">Salon ID</label>
+                                        <input class="form-control" id="spy_channel_id" name="channel_id" inputmode="numeric" pattern="[0-9]{15,25}" placeholder="Optionnel" data-opsec>
+                                        <div class="form-text">Vide = tous les salons texte lisibles, limite {{ spy_max_channels }} salons.</div>
+                                    </div>
+                                    <div>
+                                        <label class="form-label" for="spy_notify_channel_id">Salon notification</label>
+                                        <input class="form-control" id="spy_notify_channel_id" name="notify_channel_id" inputmode="numeric" pattern="[0-9]{15,25}" placeholder="Optionnel" data-opsec>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label" for="keywords">Mots-cles</label>
+                                    <textarea class="form-control" id="keywords" name="keywords" rows="3" placeholder="mot1, mot2, phrase exacte" required></textarea>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="spy_enabled" name="enabled" checked>
+                                    <label class="form-check-label" for="spy_enabled">Activer la regle apres creation</label>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-plus-lg"></i>
+                                    <span>Ajouter spy</span>
+                                </button>
+                            </form>
+                        </div>
+                    </details>
+
+                    <form method="post">
+                        <input type="hidden" name="action" value="scan_spy_now">
+                        <button type="submit" class="btn btn-outline-secondary">
+                            <i class="bi bi-search"></i>
+                            <span>Scanner spy maintenant</span>
+                        </button>
+                    </form>
+
+                    <details class="tool-disclosure" open>
+                        <summary>
+                            <span>
+                                <strong>Regles</strong>
+                                <small>{{ spy_rules|length }} regle(s)</small>
+                            </span>
+                            <i class="bi bi-chevron-down"></i>
+                        </summary>
+                        <div class="tool-disclosure-body table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Regle</th>
+                                        <th>Mots</th>
+                                        <th>Etat</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for rule in spy_rules %}
+                                        <tr>
+                                            <td>
+                                                <strong data-opsec>{{ rule['guild_name'] or rule['guild_id'] }}</strong>
+                                                <small class="d-block text-muted" data-opsec>{{ '#' ~ rule['channel_name'] if rule['channel_name'] else 'Tous salons' }}</small>
+                                                {% if rule['last_error'] %}
+                                                    <small class="d-block text-danger">{{ rule['last_error'] }}</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ (rule['keyword_list'] or [])|join(', ') }}</td>
+                                            <td>
+                                                <span class="badge {{ 'text-bg-success' if rule['enabled'] else 'text-bg-secondary' }}">{{ 'Actif' if rule['enabled'] else 'Pause' }}</span>
+                                                <small class="d-block text-muted">{{ rule['match_count'] or 0 }} match(s)</small>
+                                            </td>
+                                            <td class="text-end">
+                                                <div class="table-actions">
+                                                    <form method="post">
+                                                        <input type="hidden" name="action" value="toggle_spy_rule">
+                                                        <input type="hidden" name="rule_id" value="{{ rule['id'] }}">
+                                                        <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                                            <i class="bi {{ 'bi-pause' if rule['enabled'] else 'bi-play' }}"></i>
+                                                        </button>
+                                                    </form>
+                                                    <form method="post">
+                                                        <input type="hidden" name="action" value="delete_spy_rule">
+                                                        <input type="hidden" name="rule_id" value="{{ rule['id'] }}">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted">Aucune regle spy.</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
+                </div>
+            </article>
+
+            <aside class="status-panel">
+                <div class="status-heading">
+                    <div>
+                        <h2 class="section-title">Evenements spy</h2>
+                        <p class="section-subtitle">Derniers messages detectes.</p>
+                    </div>
+                </div>
+                <div class="event-list">
+                    {% for event in spy_events %}
+                        <a class="event-item" href="{{ event['jump_url'] or '#' }}" {% if event['jump_url'] %}target="_blank" rel="noreferrer noopener"{% endif %}>
+                            <header>
+                                <span class="badge text-bg-primary">{{ event['keyword'] }}</span>
+                                <time>{{ format_local_timestamp(event['created_at']) }}</time>
+                            </header>
+                            <strong data-opsec>{{ event['guild_name'] or event['guild_id'] }} · #{{ event['channel_name'] or event['channel_id'] }}</strong>
+                            <p data-opsec>{{ event['author_name'] or event['author_id'] }} · {{ event['content'] }}</p>
+                        </a>
+                    {% else %}
+                        <p class="section-subtitle">Aucun match spy.</p>
+                    {% endfor %}
+                </div>
+            </aside>
+        </div>
+    </section>
+
+    <section class="tab-pane fade {% if active_selfbot_tab == 'messages' %}show active{% endif %}" id="selfbot-messages" role="tabpanel" aria-labelledby="selfbot-messages-tab" tabindex="0">
+        <div class="selfbot-panel-grid">
+            <details class="tool-disclosure" open>
+                <summary>
+                    <span>
+                        <strong>DM all</strong>
+                        <small>Amis et/ou conversations DM existantes</small>
+                    </span>
+                    <i class="bi bi-chevron-down"></i>
+                </summary>
+                <div class="tool-disclosure-body">
+                    <form method="post" class="stacked-form">
+                        <input type="hidden" name="action" value="dmall">
+                        <div>
+                            <label class="form-label" for="dmall_profile">Profil</label>
+                            <select class="form-select" id="dmall_profile" name="profile_id" required>
+                                <option value="">Choisir un profil</option>
+                                {% for profile in profiles %}
+                                    <option value="{{ profile['id'] }}" data-opsec>{{ profile['name'] }} - {{ discord_display_name(profile) }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label" for="dmall_message">Message</label>
+                            <textarea class="form-control" id="dmall_message" name="message" rows="5" required></textarea>
+                        </div>
+                        <div class="compact-form-grid">
+                            <label class="check-row inline-check">
+                                <input class="form-check-input" type="checkbox" name="include_friends" checked>
+                                <span>Amis</span>
+                            </label>
+                            <label class="check-row inline-check">
+                                <input class="form-check-input" type="checkbox" name="include_dms" checked>
+                                <span>DM existants</span>
+                            </label>
+                            <div>
+                                <label class="form-label" for="dmall_delay">Delai par envoi</label>
+                                <input class="form-control" id="dmall_delay" name="delay" type="number" min="0" max="120" step="0.1" value="1">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-send"></i>
+                            <span>Lancer DM all</span>
+                        </button>
+                    </form>
+                </div>
+            </details>
+
+            <details class="tool-disclosure">
+                <summary>
+                    <span>
+                        <strong>Del all friends</strong>
+                        <small>Backup des relations dans le resultat du run</small>
+                    </span>
+                    <i class="bi bi-chevron-down"></i>
+                </summary>
+                <div class="tool-disclosure-body">
+                    <form method="post" class="stacked-form">
+                        <input type="hidden" name="action" value="delallfriends">
+                        <div>
+                            <label class="form-label" for="del_profile">Profil</label>
+                            <select class="form-select" id="del_profile" name="profile_id" required>
+                                <option value="">Choisir un profil</option>
+                                {% for profile in profiles %}
+                                    <option value="{{ profile['id'] }}" data-opsec>{{ profile['name'] }} - {{ discord_display_name(profile) }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label" for="del_delay">Delai par suppression</label>
+                            <input class="form-control" id="del_delay" name="delay" type="number" min="0" max="120" step="0.1" value="0.8">
+                        </div>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-person-x"></i>
+                            <span>Supprimer les amis</span>
+                        </button>
+                    </form>
+                </div>
+            </details>
+        </div>
+    </section>
+
+    <section class="tab-pane fade {% if active_selfbot_tab == 'backups' %}show active{% endif %}" id="selfbot-backups" role="tabpanel" aria-labelledby="selfbot-backups-tab" tabindex="0">
+        <div class="data-info-grid">
+            <article class="card">
+                <div class="card-header bg-transparent">
+                    <h2 class="section-title">Backups serveur</h2>
+                    <p class="section-subtitle">bcreate sauvegarde salons/categories/roles lisibles. bload redeploie roles puis salons.</p>
+                </div>
+                <div class="card-body stacked-form">
+                    <details class="tool-disclosure" open>
+                        <summary>
+                            <span>
+                                <strong>bcreate</strong>
+                                <small>Sauvegarder un serveur source</small>
+                            </span>
+                            <i class="bi bi-chevron-down"></i>
+                        </summary>
+                        <div class="tool-disclosure-body">
+                            <form method="post" class="stacked-form">
+                                <input type="hidden" name="action" value="bcreate">
+                                <div class="compact-form-grid">
+                                    <div>
+                                        <label class="form-label" for="bcreate_profile">Profil</label>
+                                        <select class="form-select" id="bcreate_profile" name="profile_id" required>
+                                            <option value="">Choisir un profil</option>
+                                            {% for profile in profiles %}
+                                                <option value="{{ profile['id'] }}" data-opsec>{{ profile['name'] }} - {{ discord_display_name(profile) }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="form-label" for="bcreate_guild_id">Serveur source ID</label>
+                                        <input class="form-control" id="bcreate_guild_id" name="guild_id" inputmode="numeric" pattern="[0-9]{15,25}" required data-opsec>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label" for="backup_name">Nom du backup</label>
+                                    <input class="form-control" id="backup_name" name="backup_name" placeholder="Optionnel">
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-download"></i>
+                                    <span>bcreate</span>
+                                </button>
+                            </form>
+                        </div>
+                    </details>
+
+                    <details class="tool-disclosure" open>
+                        <summary>
+                            <span>
+                                <strong>bload</strong>
+                                <small>Deployer un backup sur un serveur cible</small>
+                            </span>
+                            <i class="bi bi-chevron-down"></i>
+                        </summary>
+                        <div class="tool-disclosure-body">
+                            <form method="post" class="stacked-form">
+                                <input type="hidden" name="action" value="bload">
+                                <div class="compact-form-grid">
+                                    <div>
+                                        <label class="form-label" for="bload_profile">Profil</label>
+                                        <select class="form-select" id="bload_profile" name="profile_id" required>
+                                            <option value="">Choisir un profil</option>
+                                            {% for profile in profiles %}
+                                                <option value="{{ profile['id'] }}" data-opsec>{{ profile['name'] }} - {{ discord_display_name(profile) }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="form-label" for="backup_id">Backup</label>
+                                        <select class="form-select" id="backup_id" name="backup_id" required>
+                                            <option value="">Choisir un backup</option>
+                                            {% for backup in server_backups %}
+                                                <option value="{{ backup['id'] }}" data-opsec>{{ backup['name'] }} · {{ backup['channel_count'] }} salon(s), {{ backup['role_count'] }} role(s)</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label" for="target_guild_id">Serveur cible ID</label>
+                                    <input class="form-control" id="target_guild_id" name="target_guild_id" inputmode="numeric" pattern="[0-9]{15,25}" required data-opsec>
+                                </div>
+                                <div class="compact-form-grid">
+                                    <label class="check-row inline-check">
+                                        <input class="form-check-input" type="checkbox" name="restore_guild_name">
+                                        <span>Restaurer le nom du serveur</span>
+                                    </label>
+                                    <label class="check-row inline-check">
+                                        <input class="form-check-input" type="checkbox" name="clear_channels">
+                                        <span>Supprimer les salons existants avant deploy</span>
+                                    </label>
+                                </div>
+                                <button type="submit" class="btn btn-outline-primary" {% if not server_backups %}disabled{% endif %}>
+                                    <i class="bi bi-upload"></i>
+                                    <span>bload</span>
+                                </button>
+                            </form>
+                        </div>
+                    </details>
+                </div>
+            </article>
+
+            <aside class="status-panel">
+                <div class="status-heading">
+                    <div>
+                        <h2 class="section-title">Backups stockes</h2>
+                        <p class="section-subtitle">JSON serveur disponibles localement.</p>
+                    </div>
+                </div>
+                <div class="event-list">
+                    {% for backup in server_backups %}
+                        <article class="event-item">
+                            <header>
+                                <span class="badge text-bg-light">{{ backup['channel_count'] }} salon(s)</span>
+                                <time>{{ format_local_timestamp(backup['created_at']) }}</time>
+                            </header>
+                            <strong data-opsec>{{ backup['name'] }}</strong>
+                            <p data-opsec>{{ backup['guild_name'] or backup['guild_id'] }} · {{ backup['role_count'] }} role(s)</p>
+                            <div class="table-actions justify-content-start">
+                                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('export_server_backup_json', backup_id=backup['id']) }}">
+                                    <i class="bi bi-filetype-json"></i>
+                                    <span>JSON</span>
+                                </a>
+                                <form method="post">
+                                    <input type="hidden" name="action" value="delete_server_backup">
+                                    <input type="hidden" name="backup_id" value="{{ backup['id'] }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i>
+                                        <span>Supprimer</span>
+                                    </button>
+                                </form>
+                            </div>
+                        </article>
+                    {% else %}
+                        <p class="section-subtitle">Aucun backup serveur.</p>
+                    {% endfor %}
+                </div>
+            </aside>
+        </div>
+    </section>
+
+    <section class="tab-pane fade {% if active_selfbot_tab == 'runs' %}show active{% endif %}" id="selfbot-runs" role="tabpanel" aria-labelledby="selfbot-runs-tab" tabindex="0">
+        <div class="data-info-grid">
+            <article class="card">
+                <div class="card-header bg-transparent">
+                    <h2 class="section-title">Run selectionne</h2>
+                    <p class="section-subtitle">Progression et resultat exportable.</p>
+                </div>
+                <div class="card-body">
+                    {% if selected_run %}
+                        <section data-selfbot-run-status data-run-id="{{ selected_run['id'] }}" data-status="{{ selected_run['status'] }}">
+                            <div class="result-tools">
+                                <div>
+                                    <h3 class="section-title">{{ selfbot_tool_label(selected_run['tool']) }}</h3>
+                                    <p class="section-subtitle">Run <span data-opsec>{{ selected_run['id'] }}</span> · {{ format_local_timestamp(selected_run['created_at']) }}</p>
+                                </div>
+                                <a href="{{ url_for('export_selfbot_tool_run', run_id=selected_run['id']) }}" class="btn btn-outline-primary">
+                                    <i class="bi bi-filetype-json"></i>
+                                    <span>Exporter JSON</span>
+                                </a>
+                            </div>
+                            <div class="scraper-status-card tool-status-card">
+                                <span class="badge {{ selfbot_tool_status_badge_class(selected_run['status']) }}" data-field="status_label">
+                                    {{ selfbot_tool_status_label(selected_run['status']) }}
+                                </span>
+                                <div class="progress">
+                                    <div class="progress-bar" role="progressbar" style="width: {{ selfbot_tool_progress(selected_run) }}%" data-field="progress_bar">
+                                        {{ "%.1f"|format(selfbot_tool_progress(selected_run)) }}%
+                                    </div>
+                                </div>
+                                <dl class="compact-meta-list">
+                                    <div>
+                                        <dt>Traites</dt>
+                                        <dd><span data-field="processed_count">{{ selected_run['processed_count'] or 0 }}</span>/<span data-field="total_count">{{ selected_run['total_count'] or 0 }}</span></dd>
+                                    </div>
+                                    <div>
+                                        <dt>Succes</dt>
+                                        <dd data-field="success_count">{{ selected_run['success_count'] or 0 }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Echecs</dt>
+                                        <dd data-field="fail_count">{{ selected_run['fail_count'] or 0 }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt>Profil</dt>
+                                        <dd data-opsec>{{ selected_run['profile_name'] or selected_run['profile_username'] or selected_run['profile_id'] }}</dd>
+                                    </div>
+                                </dl>
+                                <p class="scraper-current-detail" data-field="current_detail">{{ selected_run['current_detail'] or 'En attente.' }}</p>
+                                <div class="alert alert-danger mb-0 {% if not selected_run['error'] %}d-none{% endif %}" data-field="error_box">
+                                    <span data-field="error">{{ selected_run['error'] }}</span>
+                                </div>
+                            </div>
+                            <pre class="selfbot-result-json" data-opsec>{{ selected_run['result_pretty'] }}</pre>
+                        </section>
+                    {% else %}
+                        <div class="empty-inline">Aucun run selectionne.</div>
+                    {% endif %}
+                </div>
+            </article>
+
+            <aside class="status-panel">
+                <div class="status-heading">
+                    <div>
+                        <h2 class="section-title">Runs recents</h2>
+                        <p class="section-subtitle">Executions lancees depuis cette interface.</p>
+                    </div>
+                </div>
+                <div class="event-list">
+                    {% for run in runs %}
+                        <a class="event-item" href="{{ url_for('selfbot_suite', tab='runs', run_id=run['id']) }}">
+                            <header>
+                                <span class="badge {{ selfbot_tool_status_badge_class(run['status']) }}">{{ selfbot_tool_status_label(run['status']) }}</span>
+                                <time>{{ format_local_timestamp(run['created_at']) }}</time>
+                            </header>
+                            <strong>{{ selfbot_tool_label(run['tool']) }}</strong>
+                            <p data-opsec>{{ run['profile_name'] or run['profile_username'] or run['profile_id'] }} · {{ run['success_count'] or 0 }} succes · {{ run['fail_count'] or 0 }} echec(s)</p>
+                        </a>
+                    {% else %}
+                        <p class="section-subtitle">Aucun run pour le moment.</p>
+                    {% endfor %}
+                </div>
+            </aside>
+        </div>
+    </section>
+</div>
+{% endblock %}

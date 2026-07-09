@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+
+{% block title %}Discord Manager - Message Scrapper{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">Tools</p>
+        <h1>Message Scrapper</h1>
+    </div>
+    <div class="toolbar">
+        <a href="{{ url_for('mutual_guild_tool') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-diagram-3"></i>
+            <span>Mutual Guild</span>
+        </a>
+        <a href="{{ url_for('message_scraper_tool', mutual_run_id=mutual_run['id'] if mutual_run else '') }}" class="btn btn-primary">
+            <i class="bi bi-arrow-clockwise"></i>
+            <span>Rafraichir</span>
+        </a>
+    </div>
+</header>
+
+<section class="tool-grid">
+    <article class="card">
+        <div class="card-header bg-transparent">
+            <h2 class="section-title">Selection</h2>
+            <p class="section-subtitle">Les serveurs viennent d'un resultat Mutual Guild et gardent le compte capable de lire la cible.</p>
+        </div>
+        <div class="card-body stacked-form">
+            {% if mutual_run %}
+                <form method="post" class="stacked-form">
+                    <input type="hidden" name="mutual_run_id" value="{{ mutual_run['id'] }}">
+                    <input type="hidden" name="target_user_id" value="{{ mutual_run['target_user_id'] }}">
+
+                    <div class="tool-constant-grid compact">
+                        <div>
+                            <span>Cible</span>
+                            <strong data-opsec>{{ mutual_run['target_user_id'] }}</strong>
+                        </div>
+                        <div>
+                            <span>Serveurs mutual</span>
+                            <strong>{{ mutual_results|length }}</strong>
+                        </div>
+                        <div>
+                            <span>Pages max</span>
+                            <strong>0 = complet</strong>
+                        </div>
+                    </div>
+
+                    <div class="result-tools compact">
+                        <button type="button" class="btn btn-outline-secondary" data-select-all="guild_ids">
+                            <i class="bi bi-check2-square"></i>
+                            <span>Tout selectionner</span>
+                        </button>
+                        <div class="input-group scraper-pages-input">
+                            <span class="input-group-text">Pages</span>
+                            <input class="form-control" type="number" min="0" max="200" step="1" name="max_pages" value="{{ default_max_pages }}">
+                        </div>
+                        <button type="submit" class="btn btn-primary" {% if not mutual_results %}disabled{% endif %}>
+                            <i class="bi bi-play"></i>
+                            <span>Lancer</span>
+                        </button>
+                    </div>
+
+                    <div class="scraper-target-list">
+                        {% for result in mutual_results %}
+                            <label class="scraper-target">
+                                <input class="form-check-input" type="checkbox" name="guild_ids" value="{{ result['guild_id'] }}" checked>
+                                {% if result['guild_icon_url'] %}
+                                    <img src="{{ result['guild_icon_url'] }}" alt="" class="mini-icon" data-opsec>
+                                {% else %}
+                                    <i class="bi bi-hdd-network"></i>
+                                {% endif %}
+                                <span>
+                                    <strong data-opsec>{{ result['guild_name'] or result['guild_id'] }}</strong>
+                                    <small data-opsec>{{ result['selected_profile_name'] or result['selected_profile_username'] or result['selected_profile_id'] }}</small>
+                                </span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </form>
+            {% else %}
+                <div class="empty-inline">
+                    Lance Mutual Guild puis ouvre le resultat ici pour choisir les serveurs a scrapper.
+                </div>
+            {% endif %}
+        </div>
+    </article>
+
+    <aside class="status-panel">
+        <div class="status-heading">
+            <div>
+                <h2 class="section-title">Runs recents</h2>
+                <p class="section-subtitle">Dernieres executions Message Scrapper.</p>
+            </div>
+        </div>
+        <div class="event-list">
+            {% for item in scraper_runs %}
+                <a class="event-item" href="{{ url_for('message_scraper_tool', mutual_run_id=item['mutual_run_id'] or '', run_id=item['id']) }}">
+                    <header>
+                        <span class="badge {{ message_scraper_status_badge_class(item['status']) }}">{{ message_scraper_status_label(item['status']) }}</span>
+                        <time>{{ format_local_timestamp(item['created_at']) }}</time>
+                    </header>
+                    <strong data-opsec>{{ item['target_user_id'] }}</strong>
+                    <p>{{ item['total_messages'] }} message(s) · {{ item['completed_guilds'] }}/{{ item['total_guilds'] }} serveur(s)</p>
+                </a>
+            {% else %}
+                <p class="section-subtitle">Aucun run pour le moment.</p>
+            {% endfor %}
+        </div>
+    </aside>
+</section>
+
+{% if scraper_run %}
+    <section class="result-block" data-scraper-status data-run-id="{{ scraper_run['id'] }}" data-status="{{ scraper_run['status'] }}">
+        <div class="result-tools">
+            <div>
+                <h2 class="section-title">Resultats du scrape</h2>
+                <p class="section-subtitle">
+                    Run <span data-opsec>{{ scraper_run['id'] }}</span> · cible <span data-opsec>{{ scraper_run['target_user_id'] }}</span>
+                </p>
+            </div>
+            <div class="toolbar">
+                <a href="{{ url_for('export_message_scraper_run', run_id=scraper_run['id']) }}" class="btn btn-outline-primary">
+                    <i class="bi bi-filetype-json"></i>
+                    <span>Exporter JSON</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="scraper-status-card tool-status-card">
+            <span class="badge {{ message_scraper_status_badge_class(scraper_run['status']) }}" data-field="status_label">
+                {{ message_scraper_status_label(scraper_run['status']) }}
+            </span>
+            <div class="progress">
+                <div class="progress-bar" role="progressbar" style="width: {{ message_scraper_progress(scraper_run) }}%" data-field="progress_bar">
+                    {{ "%.1f"|format(message_scraper_progress(scraper_run)) }}%
+                </div>
+            </div>
+            <dl class="compact-meta-list">
+                <div>
+                    <dt>Serveurs</dt>
+                    <dd><span data-field="completed_guilds">{{ scraper_run['completed_guilds'] }}</span>/<span data-field="total_guilds">{{ scraper_run['total_guilds'] }}</span></dd>
+                </div>
+                <div>
+                    <dt>Messages</dt>
+                    <dd data-field="total_messages">{{ scraper_run['total_messages'] }}</dd>
+                </div>
+                <div>
+                    <dt>Pages search</dt>
+                    <dd data-field="total_pages">{{ scraper_run['total_pages'] }}</dd>
+                </div>
+                <div>
+                    <dt>Phase</dt>
+                    <dd data-field="current_phase">{{ scraper_run['current_phase'] or '-' }}</dd>
+                </div>
+                <div>
+                    <dt>Serveur courant</dt>
+                    <dd data-field="current_guild_name">{{ scraper_run['current_guild_name'] or '-' }}</dd>
+                </div>
+                <div>
+                    <dt>HTTP Discord</dt>
+                    <dd data-field="last_status_code">{{ scraper_run['last_status_code'] or '-' }}</dd>
+                </div>
+            </dl>
+            <p class="scraper-current-detail" data-field="current_detail">{{ scraper_run['current_detail'] or 'En attente de progression detaillee.' }}</p>
+            <div class="alert alert-danger mb-0 {% if not scraper_run['error'] %}d-none{% endif %}" data-field="error_box">
+                <span data-field="error">{{ scraper_run['error'] }}</span>
+            </div>
+        </div>
+
+        {% if scraper_view['messages'] %}
+            <section class="scraper-viewer" data-scraper-viewer data-page-size="20">
+                <aside class="scraper-filter-panel">
+                    <div>
+                        <h2 class="section-title">Filtres</h2>
+                        <p class="section-subtitle">{{ scraper_view['stats']['messages'] }} message(s) charges pour ce run{% if scraper_view['stats']['limited'] %} · preview limitee a {{ preview_limit }}{% endif %}.</p>
+                    </div>
+
+                    <label class="form-label" for="scraper_search">Contenu</label>
+                    <input class="form-control" id="scraper_search" type="search" placeholder="Rechercher..." data-scraper-search>
+
+                    <label class="form-label" for="scraper_guild">Serveur</label>
+                    <select class="form-select" id="scraper_guild" data-scraper-guild>
+                        <option value="">Tous les serveurs</option>
+                        {% for guild in scraper_view['guilds'] %}
+                            <option value="{{ guild['id'] }}">{{ guild['name'] }} ({{ guild['count'] }})</option>
+                        {% endfor %}
+                    </select>
+
+                    <label class="form-label" for="scraper_channel">Salon</label>
+                    <select class="form-select" id="scraper_channel" data-scraper-channel>
+                        <option value="">Tous les salons</option>
+                        {% for channel in scraper_view['channels'] %}
+                            <option value="{{ channel['id'] }}" data-guild-id="{{ channel['guild_id'] }}">#{{ channel['name'] }} · {{ channel['guild_name'] }} ({{ channel['count'] }})</option>
+                        {% endfor %}
+                    </select>
+
+                    <div class="scraper-date-grid">
+                        <div>
+                            <label class="form-label" for="scraper_from">Depuis</label>
+                            <input class="form-control" id="scraper_from" type="date" data-scraper-date-from>
+                        </div>
+                        <div>
+                            <label class="form-label" for="scraper_to">Jusqu'a</label>
+                            <input class="form-control" id="scraper_to" type="date" data-scraper-date-to>
+                        </div>
+                    </div>
+
+                    <div class="scraper-filter-checks">
+                        <label><input class="form-check-input" type="checkbox" value="links" data-scraper-type> Liens</label>
+                        <label><input class="form-check-input" type="checkbox" value="images" data-scraper-type> Images</label>
+                        <label><input class="form-check-input" type="checkbox" value="attachments" data-scraper-type> Pieces jointes</label>
+                        <label><input class="form-check-input" type="checkbox" value="empty" data-scraper-type> Vides</label>
+                    </div>
+
+                    <div class="button-row">
+                        <button type="button" class="btn btn-outline-secondary" data-scraper-reset>
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                            <span>Reset</span>
+                        </button>
+                    </div>
+                </aside>
+
+                <section class="scraper-message-panel">
+                    <div class="scraper-viewer-toolbar">
+                        <div class="tool-constant-grid compact scraper-stats-grid">
+                            <div>
+                                <span>Messages</span>
+                                <strong data-scraper-count>{{ scraper_view['stats']['messages'] }}</strong>
+                            </div>
+                            <div>
+                                <span>Salons</span>
+                                <strong>{{ scraper_view['stats']['channels'] }}</strong>
+                            </div>
+                            <div>
+                                <span>Liens</span>
+                                <strong>{{ scraper_view['stats']['links'] }}</strong>
+                            </div>
+                            <div>
+                                <span>Images</span>
+                                <strong>{{ scraper_view['stats']['images'] }}</strong>
+                            </div>
+                        </div>
+                        <div class="sort-control">
+                            <label class="form-label mb-0" for="scraper_sort">Tri</label>
+                            <select class="form-select" id="scraper_sort" data-scraper-sort>
+                                <option value="newest">Plus recents</option>
+                                <option value="oldest">Plus anciens</option>
+                                <option value="longest">Plus longs</option>
+                                <option value="shortest">Plus courts</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="scraper-message-list" data-scraper-list>
+                        {% for message in scraper_view['messages'] %}
+                            <article class="scraper-message-item"
+                                data-scraper-message
+                                data-guild-id="{{ message['guild_id'] }}"
+                                data-channel-id="{{ message['channel_id'] }}"
+                                data-timestamp="{{ message['timestamp'] or '' }}"
+                                data-content="{{ (message['content'] or '')|lower|e }}"
+                                data-length="{{ (message['content'] or '')|length }}"
+                                data-links="{{ 1 if message['has_links'] else 0 }}"
+                                data-images="{{ 1 if message['has_images'] else 0 }}"
+                                data-attachments="{{ 1 if message['has_attachments'] else 0 }}"
+                                data-empty="{{ 1 if message['is_empty'] else 0 }}">
+                                <header>
+                                    <div>
+                                        <strong data-opsec>{{ message['guild_name'] }}</strong>
+                                        <span data-opsec>#{{ message['channel_name'] or message['channel_id'] }}</span>
+                                    </div>
+                                    <time>{{ format_discord_timestamp(message['timestamp']) }}</time>
+                                </header>
+
+                                <p class="scraper-message-content" data-opsec>{{ message['content'] or '(sans texte)' }}</p>
+
+                                <div class="inline-badge-list">
+                                    {% if message['attachment_count'] %}
+                                        <span class="badge text-bg-light">{{ message['attachment_count'] }} piece(s)</span>
+                                    {% endif %}
+                                    {% if message['embed_count'] %}
+                                        <span class="badge text-bg-light">{{ message['embed_count'] }} embed(s)</span>
+                                    {% endif %}
+                                    {% if message['has_links'] %}
+                                        <span class="badge text-bg-primary">Lien</span>
+                                    {% endif %}
+                                    {% if message['has_images'] %}
+                                        <span class="badge text-bg-success">Image</span>
+                                    {% endif %}
+                                </div>
+
+                                {% if message['attachments'] %}
+                                    <div class="scraper-attachment-list">
+                                        {% for attachment in message['attachments'][:4] %}
+                                            <a href="{{ attachment.get('url') }}" class="scraper-attachment" target="_blank" rel="noreferrer noopener" data-opsec>
+                                                <i class="bi bi-paperclip"></i>
+                                                <span>{{ attachment.get('filename') or attachment.get('url') }}</span>
+                                            </a>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+
+                                <div class="task-message-meta">
+                                    {% if message['jump_url'] %}
+                                        <a href="{{ message['jump_url'] }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noreferrer noopener">
+                                            <i class="bi bi-box-arrow-up-right"></i>
+                                            <span>Lien Discord</span>
+                                        </a>
+                                    {% endif %}
+                                    <span class="message-id" data-opsec>{{ message['message_id'] }}</span>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+
+                    <div class="scraper-pagination">
+                        <button type="button" class="btn btn-outline-secondary" data-scraper-prev>
+                            <i class="bi bi-chevron-left"></i>
+                            <span>Precedent</span>
+                        </button>
+                        <span data-scraper-page-info>Page 1</span>
+                        <button type="button" class="btn btn-outline-secondary" data-scraper-next>
+                            <span>Suivant</span>
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                </section>
+            </section>
+        {% elif scraper_run['status'] in ['pending', 'running'] %}
+            <section class="empty-state">
+                <i class="bi bi-hourglass-split"></i>
+                <h2>Scrape en cours</h2>
+                <p>La page se met a jour automatiquement pendant le run.</p>
+            </section>
+        {% else %}
+            <section class="empty-state">
+                <i class="bi bi-search"></i>
+                <h2>Aucun message trouve</h2>
+                <p>Discord n'a retourne aucun message pour cette selection.</p>
+            </section>
+        {% endif %}
+    </section>
+{% endif %}
+{% endblock %}

@@ -39,6 +39,93 @@
         });
     }
 
+    function pollActivity() {
+        var root = document.querySelector("[data-activity-panel]");
+        if (!root) {
+            return;
+        }
+
+        var list = root.querySelector("[data-activity-list]");
+        var url = root.getAttribute("data-activity-url") || "/api/activity";
+
+        function text(value) {
+            return value === null || value === undefined ? "" : String(value);
+        }
+
+        function render(payload) {
+            var items = Array.isArray(payload.items) ? payload.items : [];
+            if (!items.length) {
+                root.hidden = true;
+                if (list) {
+                    list.innerHTML = "";
+                }
+                return;
+            }
+
+            root.hidden = false;
+            if (!list) {
+                return;
+            }
+            list.innerHTML = "";
+
+            items.forEach(function (item) {
+                var progress = item.progress === null || item.progress === undefined ? null : Math.max(0, Math.min(100, Number(item.progress || 0)));
+                var link = document.createElement(item.url ? "a" : "div");
+                link.className = "activity-item";
+                if (item.url) {
+                    link.href = item.url;
+                }
+
+                var header = document.createElement("div");
+                header.className = "activity-item-head";
+
+                var title = document.createElement("strong");
+                title.textContent = text(item.service);
+                var status = document.createElement("span");
+                status.textContent = text(item.status_label || item.status);
+                header.appendChild(title);
+                header.appendChild(status);
+
+                var detail = document.createElement("p");
+                detail.textContent = text(item.detail || item.current || "");
+
+                var progressWrap = document.createElement("div");
+                progressWrap.className = "activity-progress";
+                var progressBar = document.createElement("span");
+                if (progress === null) {
+                    progressWrap.classList.add("is-indeterminate");
+                    progressBar.style.width = "42%";
+                } else {
+                    progressBar.style.width = progress.toFixed(1) + "%";
+                    progressBar.textContent = progress.toFixed(0) + "%";
+                }
+                progressWrap.appendChild(progressBar);
+
+                link.appendChild(header);
+                link.appendChild(detail);
+                link.appendChild(progressWrap);
+                list.appendChild(link);
+            });
+        }
+
+        function poll() {
+            window.fetch(url, { headers: { "Accept": "application/json" } })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error("HTTP " + response.status);
+                    }
+                    return response.json();
+                })
+                .then(render)
+                .catch(function () {
+                    root.hidden = true;
+                });
+        }
+
+        poll();
+        window.setInterval(poll, 1500);
+    }
+
     function themeMode() {
         var button = document.querySelector("[data-theme-toggle]");
         if (!button) {
@@ -360,6 +447,16 @@
         });
     }
 
+    function autobumperServerSelect() {
+        document.querySelectorAll("[data-autobumper-server-select]").forEach(function (select) {
+            select.addEventListener("change", function () {
+                if (select.form) {
+                    select.form.submit();
+                }
+            });
+        });
+    }
+
     function updateMessagePager(pager, nextPage) {
         var pageCount = Number(pager.getAttribute("data-page-count") || "1");
         var page = Math.max(1, Math.min(pageCount, nextPage));
@@ -438,14 +535,526 @@
         }, 1500);
     }
 
+    function pollMessageScraperStatus() {
+        var root = document.querySelector("[data-scraper-status]");
+        if (!root) {
+            return;
+        }
+
+        var runId = root.getAttribute("data-run-id");
+        if (!runId) {
+            return;
+        }
+        var initialStatus = root.getAttribute("data-status") || "";
+        if (initialStatus !== "pending" && initialStatus !== "running") {
+            return;
+        }
+
+        function setScraperText(field, value) {
+            var element = root.querySelector('[data-field="' + field + '"]');
+            if (element) {
+                element.textContent = value === null || value === undefined ? "" : String(value);
+            }
+        }
+
+        var timer = window.setInterval(function () {
+            window.fetch("/api/message_scraper/" + encodeURIComponent(runId), { headers: { "Accept": "application/json" } })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error("HTTP " + response.status);
+                    }
+                    return response.json();
+                })
+                .then(function (payload) {
+                    var statusBadge = root.querySelector('[data-field="status_label"]');
+                    if (statusBadge) {
+                        statusBadge.textContent = payload.status_label;
+                        statusBadge.className = "badge " + payload.status_badge_class;
+                    }
+
+                    var progress = Math.max(0, Math.min(100, Number(payload.progress || 0)));
+                    var progressBar = root.querySelector('[data-field="progress_bar"]');
+                    if (progressBar) {
+                        var label = progress.toFixed(1) + "%";
+                        progressBar.style.width = label;
+                        progressBar.textContent = label;
+                    }
+
+                    setScraperText("completed_guilds", payload.completed_guilds);
+                    setScraperText("total_guilds", payload.total_guilds);
+                    setScraperText("total_messages", payload.total_messages);
+                    setScraperText("total_pages", payload.total_pages);
+                    setScraperText("current_phase", payload.current_phase || "-");
+                    setScraperText("current_guild_name", payload.current_guild_name || "-");
+                    setScraperText("current_detail", payload.current_detail || "");
+                    setScraperText("last_status_code", payload.last_status_code || "-");
+
+                    var errorBox = root.querySelector('[data-field="error_box"]');
+                    var errorText = root.querySelector('[data-field="error"]');
+                    if (errorBox && errorText) {
+                        if (payload.error) {
+                            errorText.textContent = payload.error;
+                            errorBox.classList.remove("d-none");
+                        } else {
+                            errorBox.classList.add("d-none");
+                        }
+                    }
+
+                    if (payload.status === "completed" || payload.status === "failed") {
+                        root.setAttribute("data-status", payload.status);
+                        window.clearInterval(timer);
+                        if (payload.status === "completed") {
+                            window.setTimeout(function () {
+                                window.location.reload();
+                            }, 600);
+                        }
+                    }
+                })
+                .catch(function () {
+                    window.clearInterval(timer);
+                });
+        }, 1500);
+    }
+
+    function pollAccountBackupStatus() {
+        var root = document.querySelector("[data-account-backup-status]");
+        if (!root) {
+            return;
+        }
+
+        var runId = root.getAttribute("data-run-id");
+        if (!runId) {
+            return;
+        }
+        var initialStatus = root.getAttribute("data-status") || "";
+        if (initialStatus !== "pending" && initialStatus !== "running") {
+            return;
+        }
+
+        function setBackupText(field, value) {
+            var element = root.querySelector('[data-field="' + field + '"]');
+            if (element) {
+                element.textContent = value === null || value === undefined ? "" : String(value);
+            }
+        }
+
+        var timer = window.setInterval(function () {
+            window.fetch("/api/account_backup/" + encodeURIComponent(runId), { headers: { "Accept": "application/json" } })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error("HTTP " + response.status);
+                    }
+                    return response.json();
+                })
+                .then(function (payload) {
+                    var statusBadge = root.querySelector('[data-field="status_label"]');
+                    if (statusBadge) {
+                        statusBadge.textContent = payload.status_label;
+                        statusBadge.className = "badge " + payload.status_badge_class;
+                    }
+
+                    var progress = Math.max(0, Math.min(100, Number(payload.progress || 0)));
+                    var progressBar = root.querySelector('[data-field="progress_bar"]');
+                    if (progressBar) {
+                        var label = progress.toFixed(1) + "%";
+                        progressBar.style.width = label;
+                        progressBar.textContent = label;
+                    }
+
+                    setBackupText("friend_count", payload.friend_count);
+                    setBackupText("guild_count", payload.guild_count);
+                    setBackupText("processed_guilds", payload.processed_guilds);
+                    setBackupText("invite_count", payload.invite_count);
+                    setBackupText("failed_invite_count", payload.failed_invite_count);
+                    setBackupText("current_phase", payload.current_phase || "-");
+                    setBackupText("current_detail", payload.current_detail || "");
+
+                    var errorBox = root.querySelector('[data-field="error_box"]');
+                    var errorText = root.querySelector('[data-field="error"]');
+                    if (errorBox && errorText) {
+                        if (payload.error) {
+                            errorText.textContent = payload.error;
+                            errorBox.classList.remove("d-none");
+                        } else {
+                            errorBox.classList.add("d-none");
+                        }
+                    }
+
+                    if (payload.status === "completed" || payload.status === "failed") {
+                        root.setAttribute("data-status", payload.status);
+                        window.clearInterval(timer);
+                        if (payload.status === "completed") {
+                            window.setTimeout(function () {
+                                window.location.reload();
+                            }, 700);
+                        }
+                    }
+                })
+                .catch(function () {
+                    window.clearInterval(timer);
+                });
+        }, 1500);
+    }
+
+    function pollSelfbotToolStatus() {
+        var root = document.querySelector("[data-selfbot-run-status]");
+        if (!root) {
+            return;
+        }
+
+        var runId = root.getAttribute("data-run-id");
+        if (!runId) {
+            return;
+        }
+        var initialStatus = root.getAttribute("data-status") || "";
+        if (initialStatus !== "pending" && initialStatus !== "running") {
+            return;
+        }
+
+        function setSelfbotText(field, value) {
+            var element = root.querySelector('[data-field="' + field + '"]');
+            if (element) {
+                element.textContent = value === null || value === undefined ? "" : String(value);
+            }
+        }
+
+        var timer = window.setInterval(function () {
+            window.fetch("/api/selfbot_tools/runs/" + encodeURIComponent(runId), { headers: { "Accept": "application/json" } })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error("HTTP " + response.status);
+                    }
+                    return response.json();
+                })
+                .then(function (payload) {
+                    var statusBadge = root.querySelector('[data-field="status_label"]');
+                    if (statusBadge) {
+                        statusBadge.textContent = payload.status_label;
+                        statusBadge.className = "badge " + payload.status_badge_class;
+                    }
+
+                    var progress = Math.max(0, Math.min(100, Number(payload.progress || 0)));
+                    var progressBar = root.querySelector('[data-field="progress_bar"]');
+                    if (progressBar) {
+                        var label = progress.toFixed(1) + "%";
+                        progressBar.style.width = label;
+                        progressBar.textContent = label;
+                    }
+
+                    setSelfbotText("processed_count", payload.processed_count);
+                    setSelfbotText("total_count", payload.total_count);
+                    setSelfbotText("success_count", payload.success_count);
+                    setSelfbotText("fail_count", payload.fail_count);
+                    setSelfbotText("current_detail", payload.current_detail || "");
+
+                    var errorBox = root.querySelector('[data-field="error_box"]');
+                    var errorText = root.querySelector('[data-field="error"]');
+                    if (errorBox && errorText) {
+                        if (payload.error) {
+                            errorText.textContent = payload.error;
+                            errorBox.classList.remove("d-none");
+                        } else {
+                            errorBox.classList.add("d-none");
+                        }
+                    }
+
+                    if (payload.status === "completed" || payload.status === "failed") {
+                        root.setAttribute("data-status", payload.status);
+                        window.clearInterval(timer);
+                        window.setTimeout(function () {
+                            window.location.reload();
+                        }, 700);
+                    }
+                })
+                .catch(function () {
+                    window.clearInterval(timer);
+                });
+        }, 1500);
+    }
+
+    function pollMutualGuildStatus() {
+        var root = document.querySelector("[data-mutual-status]");
+        if (!root) {
+            return;
+        }
+
+        var runId = root.getAttribute("data-run-id");
+        if (!runId) {
+            return;
+        }
+        var initialStatus = root.getAttribute("data-status") || "";
+        if (initialStatus !== "pending" && initialStatus !== "running") {
+            return;
+        }
+
+        function setMutualText(field, value) {
+            var element = root.querySelector('[data-field="' + field + '"]');
+            if (element) {
+                element.textContent = value === null || value === undefined ? "" : String(value);
+            }
+        }
+
+        var timer = window.setInterval(function () {
+            window.fetch("/api/mutual_guild/" + encodeURIComponent(runId), { headers: { "Accept": "application/json" } })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error("HTTP " + response.status);
+                    }
+                    return response.json();
+                })
+                .then(function (payload) {
+                    var statusBadge = root.querySelector('[data-field="status_label"]');
+                    if (statusBadge) {
+                        statusBadge.textContent = payload.status_label;
+                        statusBadge.className = "badge " + payload.status_badge_class;
+                    }
+
+                    var progress = Math.max(0, Math.min(100, Number(payload.progress || 0)));
+                    var progressBar = root.querySelector('[data-field="progress_bar"]');
+                    if (progressBar) {
+                        var label = progress.toFixed(1) + "%";
+                        progressBar.style.width = label;
+                        progressBar.textContent = label;
+                    }
+
+                    setMutualText("completed_profiles", payload.completed_profiles);
+                    setMutualText("profile_count", payload.profile_count);
+                    setMutualText("guild_count", payload.guild_count);
+                    setMutualText("mutual_count", payload.mutual_count);
+
+                    var errorBox = root.querySelector('[data-field="error_box"]');
+                    var errorText = root.querySelector('[data-field="error"]');
+                    if (errorBox && errorText) {
+                        if (payload.error) {
+                            errorText.textContent = payload.error;
+                            errorBox.classList.remove("d-none");
+                        } else {
+                            errorBox.classList.add("d-none");
+                        }
+                    }
+
+                    if (payload.status === "completed" || payload.status === "failed") {
+                        root.setAttribute("data-status", payload.status);
+                        window.clearInterval(timer);
+                        window.setTimeout(function () {
+                            window.location.reload();
+                        }, 600);
+                    }
+                })
+                .catch(function () {
+                    window.clearInterval(timer);
+                });
+        }, 1500);
+    }
+
+    function scraperViewer() {
+        var root = document.querySelector("[data-scraper-viewer]");
+        if (!root) {
+            return;
+        }
+
+        var list = root.querySelector("[data-scraper-list]");
+        var messages = Array.from(root.querySelectorAll("[data-scraper-message]"));
+        var search = root.querySelector("[data-scraper-search]");
+        var guildSelect = root.querySelector("[data-scraper-guild]");
+        var channelSelect = root.querySelector("[data-scraper-channel]");
+        var dateFrom = root.querySelector("[data-scraper-date-from]");
+        var dateTo = root.querySelector("[data-scraper-date-to]");
+        var typeChecks = Array.from(root.querySelectorAll("[data-scraper-type]"));
+        var sort = root.querySelector("[data-scraper-sort]");
+        var reset = root.querySelector("[data-scraper-reset]");
+        var count = root.querySelector("[data-scraper-count]");
+        var prev = root.querySelector("[data-scraper-prev]");
+        var next = root.querySelector("[data-scraper-next]");
+        var pageInfo = root.querySelector("[data-scraper-page-info]");
+        var pageSize = Math.max(1, Number(root.getAttribute("data-page-size") || 20));
+        var currentPage = 1;
+        var filtered = messages.slice();
+
+        function messageTime(message) {
+            var value = message.getAttribute("data-timestamp") || "";
+            var parsed = Date.parse(value);
+            return Number.isNaN(parsed) ? 0 : parsed;
+        }
+
+        function selectedTypes() {
+            return typeChecks.filter(function (box) {
+                return box.checked;
+            }).map(function (box) {
+                return box.value;
+            });
+        }
+
+        function matchesTypes(message, types) {
+            if (!types.length) {
+                return true;
+            }
+            return types.every(function (type) {
+                return message.getAttribute("data-" + type) === "1";
+            });
+        }
+
+        function syncChannelOptions() {
+            if (!guildSelect || !channelSelect) {
+                return;
+            }
+            var selectedGuild = guildSelect.value;
+            Array.from(channelSelect.options).forEach(function (option) {
+                if (!option.value) {
+                    option.hidden = false;
+                    return;
+                }
+                option.hidden = Boolean(selectedGuild) && option.getAttribute("data-guild-id") !== selectedGuild;
+            });
+            var currentOption = channelSelect.selectedOptions[0];
+            if (currentOption && currentOption.hidden) {
+                channelSelect.value = "";
+            }
+        }
+
+        function applySort(items) {
+            var mode = sort ? sort.value : "newest";
+            return items.slice().sort(function (a, b) {
+                if (mode === "oldest") {
+                    return messageTime(a) - messageTime(b);
+                }
+                if (mode === "longest") {
+                    return Number(b.getAttribute("data-length") || 0) - Number(a.getAttribute("data-length") || 0);
+                }
+                if (mode === "shortest") {
+                    return Number(a.getAttribute("data-length") || 0) - Number(b.getAttribute("data-length") || 0);
+                }
+                return messageTime(b) - messageTime(a);
+            });
+        }
+
+        function applyFilters() {
+            var query = (search ? search.value : "").trim().toLowerCase();
+            var guildId = guildSelect ? guildSelect.value : "";
+            var channelId = channelSelect ? channelSelect.value : "";
+            var from = dateFrom && dateFrom.value ? Date.parse(dateFrom.value + "T00:00:00") : 0;
+            var to = dateTo && dateTo.value ? Date.parse(dateTo.value + "T23:59:59") : Number.MAX_SAFE_INTEGER;
+            var types = selectedTypes();
+
+            syncChannelOptions();
+            filtered = applySort(messages.filter(function (message) {
+                var timestamp = messageTime(message);
+                if (query && !(message.getAttribute("data-content") || "").includes(query)) {
+                    return false;
+                }
+                if (guildId && message.getAttribute("data-guild-id") !== guildId) {
+                    return false;
+                }
+                if (channelId && message.getAttribute("data-channel-id") !== channelId) {
+                    return false;
+                }
+                if (timestamp && (timestamp < from || timestamp > to)) {
+                    return false;
+                }
+                return matchesTypes(message, types);
+            }));
+            currentPage = 1;
+            render();
+        }
+
+        function render() {
+            var pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+            currentPage = Math.max(1, Math.min(currentPage, pageCount));
+            var start = (currentPage - 1) * pageSize;
+            var visible = new Set(filtered.slice(start, start + pageSize));
+
+            filtered.forEach(function (message) {
+                if (list) {
+                    list.appendChild(message);
+                }
+            });
+            messages.forEach(function (message) {
+                message.classList.toggle("d-none", !visible.has(message));
+            });
+
+            if (count) {
+                count.textContent = String(filtered.length);
+            }
+            if (pageInfo) {
+                pageInfo.textContent = filtered.length ? "Page " + currentPage + " / " + pageCount : "Aucun resultat";
+            }
+            if (prev) {
+                prev.disabled = currentPage <= 1;
+            }
+            if (next) {
+                next.disabled = currentPage >= pageCount;
+            }
+        }
+
+        [search, guildSelect, channelSelect, dateFrom, dateTo, sort].forEach(function (control) {
+            if (!control) {
+                return;
+            }
+            control.addEventListener(control === search ? "input" : "change", applyFilters);
+        });
+        typeChecks.forEach(function (box) {
+            box.addEventListener("change", applyFilters);
+        });
+        if (reset) {
+            reset.addEventListener("click", function () {
+                if (search) search.value = "";
+                if (guildSelect) guildSelect.value = "";
+                if (channelSelect) channelSelect.value = "";
+                if (dateFrom) dateFrom.value = "";
+                if (dateTo) dateTo.value = "";
+                if (sort) sort.value = "newest";
+                typeChecks.forEach(function (box) {
+                    box.checked = false;
+                });
+                applyFilters();
+            });
+        }
+        if (prev) {
+            prev.addEventListener("click", function () {
+                currentPage -= 1;
+                render();
+            });
+        }
+        if (next) {
+            next.addEventListener("click", function () {
+                currentPage += 1;
+                render();
+            });
+        }
+
+        applyFilters();
+    }
+
+    function selfbotTabsUrlSync() {
+        document.querySelectorAll("[data-selfbot-tab]").forEach(function (button) {
+            button.addEventListener("shown.bs.tab", function () {
+                var tab = button.getAttribute("data-selfbot-tab");
+                if (!tab || !window.history || !window.URLSearchParams) {
+                    return;
+                }
+                var url = new URL(window.location.href);
+                url.searchParams.set("tab", tab);
+                window.history.replaceState({}, "", url.toString());
+            });
+        });
+    }
+
     document.addEventListener("DOMContentLoaded", function () {
         confirmForms();
         selectAllButtons();
+        pollActivity();
         themeMode();
         opsecMode();
         selectChannelFromUrl();
         channelResultSearch();
+        autobumperServerSelect();
         messagePagers();
+        scraperViewer();
         pollTaskStatus();
+        pollMutualGuildStatus();
+        pollMessageScraperStatus();
+        pollAccountBackupStatus();
+        pollSelfbotToolStatus();
+        selfbotTabsUrlSync();
     });
 })();

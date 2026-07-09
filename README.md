@@ -1,8 +1,8 @@
 # Discord Manager Web
 
-Interface web locale pour analyser, exporter et supprimer les messages d'un compte Discord dans les serveurs et les conversations privees.
+Interface web locale pour analyser, exporter, sauvegarder et administrer des donnees Discord depuis plusieurs comptes configures en local.
 
-> Outil local et sensible. Ne deploiez pas cette application sur un serveur public, ne partagez jamais votre token Discord, et verifiez toujours les salons/conversations selectionnes avant suppression.
+> Projet sensible a lancer uniquement sur une machine de confiance. Ne publiez jamais votre `.env`, votre base SQLite, vos exports, vos logs, vos tokens ou des captures non anonymisees.
 
 ## Apercu
 
@@ -10,44 +10,59 @@ Interface web locale pour analyser, exporter et supprimer les messages d'un comp
 
 ![Tableau de bord clair](docs/screenshots/dashboard-light.png)
 
-### Analyse serveur en theme sombre
+### Analyse serveur
 
 ![Analyse serveur sombre](docs/screenshots/server-analysis-dark.png)
 
-### Conversation privee ciblee
+### Conversation privee
 
 ![Conversation privee ciblee](docs/screenshots/dm-detail-light.png)
+
+### Outils et logs
+
+![Outils et supervision](docs/screenshots/tools-overview-dark.png)
+
+### Backup compte
+
+![Backup compte](docs/screenshots/account-backup-light.png)
+
+Les captures sont generees avec des donnees fictives.
 
 ## Fonctionnalites
 
 - Gestion locale de plusieurs profils Discord.
-- Liste des serveurs et conversations privees accessibles au compte.
-- Analyse automatique d'un serveur au clic sur sa carte.
-- Affichage uniquement des salons contenant des messages du compte.
-- Recherche dans les resultats serveur.
-- Messages affiches par salon ou par conversation, avec pagination.
-- Suppression reelle par salon ou conversation.
-- Export ZIP sans suppression pour une conversation privee.
-- Export ZIP optionnel avant suppression pour serveurs et MPs.
-- Page de suivi avec messages trouves, supprimes et echoues.
-- Mode OPSEC pour masquer noms, IDs, avatars et champs sensibles en stream.
-- Themes clair et sombre persistants dans le navigateur.
-- Supervision PM2 incluse.
+- Analyse des serveurs au clic avec affichage des salons contenant des messages du compte.
+- Analyse des conversations privees avec affichage des messages concernes.
+- Recherche, pagination, selection par salon ou conversation.
+- Export ZIP sans suppression pour les conversations privees.
+- Export ZIP optionnel avant suppression pour serveurs et messages prives.
+- Suivi des suppressions avec messages trouves, supprimes et echoues.
+- Mode OPSEC pour masquer noms, IDs, avatars et champs sensibles.
+- Theme clair et theme sombre persistants dans le navigateur.
+- Auto Bump configurable par compte, serveur et salon.
+- Backup compte avec amis, serveurs et invitations disponibles.
+- Planification des backups de compte.
+- Mutual Guild Finder et Message Scraper avec suivi de progression.
+- Selfbot suite organisee par onglets: compte, spy, messages, backups serveur et runs.
+- Gestion data pour supprimer les donnees collectees localement.
+- Journal chronologique des services dans une zone scrollable.
+- Scripts PM2 pour lancer, redemarrer, consulter les logs et arreter l'application.
 
 ## Securite
 
-Cette application manipule un token Discord et peut supprimer des messages definitivement.
+Cette application manipule des tokens Discord et peut effectuer des actions irreversibles.
 
-Avant de publier ou partager le projet, gardez hors Git :
+Gardez hors Git :
 
 - `.env`
 - `discord_manager.db`
 - `exports/`
 - `logs/`
 - `.venv/`
-- tout fichier contenant un token, cookie, webhook ou capture non anonymisee
+- fichiers JSON/ZIP de backup reels
+- captures contenant des pseudos, IDs, tokens, salons ou serveurs non anonymises
 
-Le `.gitignore` du projet exclut deja ces fichiers. Les captures presentes dans `docs/screenshots/` utilisent des donnees fictives.
+Le `.gitignore` du projet exclut deja les fichiers runtime sensibles. Les tokens sont stockes en clair dans la base SQLite locale, donc la base ne doit jamais etre partagee.
 
 ## Installation
 
@@ -59,7 +74,7 @@ cp .env.example .env
 
 Modifiez `.env` si besoin. Les valeurs par defaut lancent l'application en local sur `127.0.0.1:5000`.
 
-## Lancement Local
+## Lancement local
 
 ```bash
 ./run.sh
@@ -129,45 +144,55 @@ TASK_MESSAGE_LOG_LIMIT=1000
 DM_EXPORT_MAX_PAGES=0
 DM_EXPORT_ASSET_TIMEOUT=20
 DM_EXPORT_MAX_ASSET_BYTES=26214400
+AUTOBUMPER_ENABLED=1
+ACCOUNT_BACKUP_SCHEDULER_ENABLED=1
+SELFBOT_TOOLS_WORKER_ENABLED=1
 ```
 
-`ecosystem.config.cjs` contient les valeurs PM2. Si vous utilisez `.env`, reportez les valeurs importantes dans la config PM2 ou exportez-les avant de lancer PM2.
+`ecosystem.config.cjs` contient les valeurs PM2. Si vous utilisez `.env`, reportez les valeurs importantes dans la config PM2 ou exportez-les avant le lancement.
 
-## Flux Serveur
+## Flux serveur
 
-1. Ajouter un profil local avec un token Discord.
-2. Cliquer sur `Serveurs`.
-3. Cliquer sur un serveur.
-4. L'analyse se lance automatiquement via l'endpoint Discord search.
-5. L'interface affiche uniquement les salons contenant des messages du compte.
-6. Ouvrir les messages d'un salon, rechercher, selectionner les salons utiles.
-7. Supprimer, avec export ZIP optionnel avant suppression.
+1. Ajouter un profil local.
+2. Ouvrir `Serveurs`.
+3. Choisir le compte puis cliquer sur un serveur.
+4. L'analyse se lance automatiquement.
+5. Les salons sans message du compte sont masques.
+6. Ouvrir les messages d'un salon, rechercher, puis selectionner les salons utiles.
+7. Supprimer avec export ZIP optionnel.
 
-## Flux Messages Prives
+## Flux messages prives
 
-1. Cliquer sur `MPs`.
-2. Cliquer sur une conversation.
-3. Voir uniquement les messages du compte qui seront concernes.
+1. Ouvrir `DM`.
+2. Choisir le compte puis la conversation.
+3. Verifier les messages concernes.
 4. Exporter la conversation en ZIP sans suppression si besoin.
-5. Supprimer la conversation selectionnee, avec export ZIP optionnel avant suppression.
+5. Supprimer avec export ZIP optionnel.
 
-## Exports ZIP
+## Backups
 
-Les ZIP contiennent :
+Le backup compte collecte les informations locales utiles pour restaurer un contexte :
 
-- `transcript.html` : lecture hors ligne.
-- `messages.json` : messages bruts retournes par Discord.
-- `metadata.json` : resume de l'export.
-- `avatars/`, `attachments/`, `embeds/` : assets telecharges quand possible.
+- relations disponibles via l'endpoint Discord;
+- serveurs accessibles au compte;
+- invitations permanentes existantes ou creees quand les permissions le permettent;
+- resultat telechargeable en JSON ou ZIP.
 
-## Rate Limits
+La page de parametres permet de choisir les comptes a sauvegarder et la frequence d'execution.
+
+## Donnees locales
+
+Les resultats de scans, backups, runs et scrapes sont stockes dans `discord_manager.db`. La page `Gestion data` permet de supprimer ces donnees localement sans toucher aux messages Discord.
+
+## Rate limits
 
 Les appels Discord passent par un verrou global cote processus. L'application :
 
 - espace les requetes avec `DISCORD_REQUEST_SPACING`;
 - lit `X-RateLimit-Remaining` et `X-RateLimit-Reset-After` quand Discord les renvoie;
-- respecte `Retry-After` / `retry_after` en cas de HTTP 429;
-- utilise une recherche globale par serveur pour eviter une recherche salon par salon.
+- respecte `Retry-After` et `retry_after` en cas de HTTP 429;
+- limite les boucles de scan par configuration;
+- conserve les resultats collectes localement pour eviter de refaire les memes requetes inutilement.
 
 Ce mecanisme reduit le risque de rate limit, mais ne le supprime pas. Discord applique aussi des limites par route, par ressource et globales.
 
@@ -186,11 +211,10 @@ ecosystem.config.cjs      Configuration PM2
 pm2-*.sh                  Scripts PM2
 ```
 
-## Limites Connues
+## Limites connues
 
 - Les tokens sont stockes en clair dans la base SQLite locale.
-- L'application utilise des endpoints Discord non officiels pour la recherche de messages.
-- Une tache interrompue par un redemarrage PM2 est marquee comme interrompue; elle n'est pas reprise au message exact.
-- Les resultats dependent de l'index de recherche Discord, qui peut etre temporairement incomplet.
+- Certains endpoints Discord utilises ne sont pas documentes officiellement.
+- Les resultats de recherche dependent de l'index Discord et peuvent etre temporairement incomplets.
+- Une tache interrompue par un redemarrage PM2 n'est pas reprise au message exact.
 - L'application est concue pour un usage local, pas pour un hebergement public.
-# discord-manager-web
