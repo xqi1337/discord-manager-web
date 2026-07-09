@@ -1,13 +1,17 @@
 const path = require("path");
 
 const cwd = __dirname;
+const pythonPath =
+  process.platform === "win32"
+    ? path.join(cwd, ".venv", "Scripts", "python.exe")
+    : path.join(cwd, ".venv", "bin", "python");
 
 module.exports = {
   apps: [
     {
       name: "discord-manager-web",
       cwd,
-      script: path.join(cwd, ".venv/bin/python"),
+      script: pythonPath,
       args: "app.py",
       interpreter: "none",
       instances: 1,

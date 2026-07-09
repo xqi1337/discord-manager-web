@@ -64,17 +64,42 @@ Gardez hors Git :
 
 Le `.gitignore` du projet exclut deja les fichiers runtime sensibles. Les tokens sont stockes en clair dans la base SQLite locale, donc la base ne doit jamais etre partagee.
 
-## Installation
+## Prerequis
+
+- Python 3.10 ou plus recent.
+- Git pour cloner le projet.
+- Node.js et PM2 uniquement si vous voulez lancer l'application avec PM2.
+
+## Installation Linux/macOS
 
 ```bash
-python -m venv .venv
-.venv/bin/pip install -r requirements.txt
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r requirements.txt
 cp .env.example .env
+```
+
+## Installation Windows PowerShell
+
+Depuis PowerShell, dans le dossier du projet :
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+Copy-Item .env.example .env
+```
+
+Si PowerShell bloque l'activation du venv :
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+.\.venv\Scripts\Activate.ps1
 ```
 
 Modifiez `.env` si besoin. Les valeurs par defaut lancent l'application en local sur `127.0.0.1:5000`.
 
-## Lancement local
+## Lancement local Linux/macOS
 
 ```bash
 ./run.sh
@@ -86,7 +111,25 @@ Puis ouvrez :
 http://127.0.0.1:5000
 ```
 
-## Lancement PM2
+## Lancement local Windows
+
+```powershell
+.\run.ps1
+```
+
+Sans utiliser le script :
+
+```powershell
+.\.venv\Scripts\python.exe app.py
+```
+
+Puis ouvrez :
+
+```text
+http://127.0.0.1:5000
+```
+
+## Lancement PM2 Linux/macOS
 
 Demarrer ou mettre a jour le process :
 
@@ -123,6 +166,38 @@ Supprimer le process PM2 :
 ```bash
 ./pm2-delete.sh
 ```
+
+## Lancement PM2 Windows
+
+Installez PM2 si besoin :
+
+```powershell
+npm install -g pm2
+```
+
+Demarrer ou mettre a jour le process :
+
+```powershell
+.\pm2-start.ps1
+```
+
+Commandes utiles :
+
+```powershell
+pm2 status discord-manager-web
+pm2 logs discord-manager-web
+pm2 restart discord-manager-web --update-env
+pm2 stop discord-manager-web
+pm2 delete discord-manager-web
+```
+
+Pour relancer apres un redemarrage Windows, sauvegardez la liste PM2 :
+
+```powershell
+pm2 save
+```
+
+Puis creez une tache dans le Planificateur de taches Windows qui execute `pm2 resurrect` a l'ouverture de session.
 
 ## Configuration
 
@@ -207,8 +282,10 @@ static/favicon.svg        Favicon
 docs/screenshots/         Captures anonymisees pour la documentation
 requirements.txt          Dependances Python
 run.sh                    Lancement local
+run.ps1                   Lancement local Windows
 ecosystem.config.cjs      Configuration PM2
 pm2-*.sh                  Scripts PM2
+pm2-start.ps1             Script PM2 Windows
 ```
 
 ## Limites connues
